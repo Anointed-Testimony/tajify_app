@@ -393,7 +393,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.auto_graph_outlined),
-                  label: 'Mining',
+                  label: 'Earn',
                 ),
               ],
               currentIndex: 0, // Connect tab
@@ -402,6 +402,8 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   return;
                 } else if (index == 1) {
                   context.go('/channel');
+                } else if (index == 3) {
+                  context.go('/earn');
                 }
                 // Add navigation for other tabs as needed
               },

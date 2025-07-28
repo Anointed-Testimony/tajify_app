@@ -11,6 +11,7 @@ import '../providers/auth_provider.dart';
 import '../screens/home_screen.dart';
 import '../screens/connect_screen.dart';
 import '../screens/channel_screen.dart';
+import '../screens/earning_center_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -155,6 +156,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/channel',
       builder: (context, state) => const ChannelScreen(),
+    ),
+    GoRoute(
+      path: '/earn',
+      builder: (context, state) => const EarningCenterScreen(),
     ),
   ],
 ); 

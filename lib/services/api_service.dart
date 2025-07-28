@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.135.39:8000/api';
+  static const String baseUrl = 'http://192.168.252.39:8000/api';
   static const String storageKey = 'auth_token';
   
   late Dio _dio;
@@ -68,10 +69,16 @@ class ApiService {
       
       return response;
     } on DioException catch (e) {
-      print('POST Error: ${e.message}');
+      print('=== API ERROR DETAILS ===');
+      print('API Error: ${e.message}');
       print('Error type: ${e.type}');
-      print('Error response: ${e.response?.data}');
-      print('Error status: ${e.response?.statusCode}');
+      print('Error status code: ${e.response?.statusCode}');
+      print('Error response data: ${e.response?.data}');
+      print('Error response headers: ${e.response?.headers}');
+      print('Request URL: ${e.requestOptions.uri}');
+      print('Request method: ${e.requestOptions.method}');
+      print('Request headers: ${e.requestOptions.headers}');
+      print('=======================');
       throw _handleDioError(e);
     }
   }
@@ -117,10 +124,16 @@ class ApiService {
       
       return response;
     } on DioException catch (e) {
+      print('=== API ERROR DETAILS ===');
       print('API Error: ${e.message}');
       print('Error type: ${e.type}');
-      print('Error response: ${e.response?.data}');
-      print('Error status: ${e.response?.statusCode}');
+      print('Error status code: ${e.response?.statusCode}');
+      print('Error response data: ${e.response?.data}');
+      print('Error response headers: ${e.response?.headers}');
+      print('Request URL: ${e.requestOptions.uri}');
+      print('Request method: ${e.requestOptions.method}');
+      print('Request headers: ${e.requestOptions.headers}');
+      print('=======================');
       throw _handleDioError(e);
     }
   }
@@ -174,7 +187,21 @@ class ApiService {
   }
 
   Future<String?> getToken() async {
-    return await _secureStorage.read(key: storageKey);
+    try {
+      return await _secureStorage.read(key: storageKey);
+    } catch (e) {
+      print('Error reading token: $e');
+      return null;
+    }
+  }
+
+  Future<void> clearToken() async {
+    try {
+      await _secureStorage.delete(key: storageKey);
+      print('Token cleared successfully');
+    } catch (e) {
+      print('Error clearing token: $e');
+    }
   }
 
   Future<void> deleteToken() async {
@@ -183,5 +210,337 @@ class ApiService {
 
   Future<void> clearAllData() async {
     await _secureStorage.deleteAll();
+  }
+
+  // Upload-specific methods
+  Future<Response> getUploadToken() async {
+    return await post('/upload/get-token');
+  }
+
+  Future<Response> uploadMedia(File file, String mediaType, {String? uploadToken, double? duration}) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path),
+      'media_type': mediaType,
+      if (uploadToken != null) 'upload_token': uploadToken,
+      if (duration != null) 'duration': duration,
+    });
+    return await postFormData('/upload/media', formData);
+  }
+
+  Future<Response> completeUpload(int postId, List<int> mediaFileIds, {int? thumbnailMediaId}) async {
+    return await post('/upload/complete', data: {
+      'post_id': postId,
+      'media_file_ids': mediaFileIds,
+      if (thumbnailMediaId != null) 'thumbnail_media_id': thumbnailMediaId,
+    });
+  }
+
+  Future<Response> createPost({
+    required int postTypeId,
+    String? title,
+    String? description,
+    bool isPrime = false,
+    bool allowDuet = true,
+    List<String>? hashtags,
+  }) async {
+    return await post('/posts', data: {
+      'post_type_id': postTypeId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      'is_prime': isPrime,
+      'allow_duet': allowDuet,
+      if (hashtags != null) 'hashtags': hashtags,
+    });
+  }
+
+  Future<Response> getPostTypes() async {
+    return await get('/posts/types');
+  }
+
+  Future<Response> getPosts({String? postType, int? page}) async {
+    final queryParams = <String, dynamic>{};
+    if (postType != null) queryParams['post_type'] = postType;
+    if (page != null) queryParams['page'] = page;
+    
+    return await get('/posts', queryParameters: queryParams);
+  }
+
+  Future<Response> getTubeShortPosts({int? page}) async {
+    return await getPosts(postType: 'tube_short', page: page);
+  }
+
+  Future<Response> getTubeMaxPosts({int? page}) async {
+    return await getPosts(postType: 'tube_max', page: page);
+  }
+
+  Future<Response> getTubePrimePosts({int? page}) async {
+    return await getPosts(postType: 'tube_prime', page: page);
+  }
+
+  // Interaction methods (Like, Save, Comment)
+  Future<Response> toggleLike(int postId) async {
+    return await post('/posts/$postId/like');
+  }
+
+  Future<Response> toggleSave(int postId) async {
+    return await post('/posts/$postId/save');
+  }
+
+  Future<Response> share(int postId) async {
+    return await post('/posts/$postId/share');
+  }
+
+  Future<Response> getInteractionCounts(int postId) async {
+    return await get('/interactions/posts/$postId/counts');
+  }
+
+  Future<Response> getSavedPosts({int? page}) async {
+    final queryParams = <String, dynamic>{};
+    if (page != null) queryParams['page'] = page;
+    return await get('/interactions/saved-posts', queryParameters: queryParams);
+  }
+
+  Future<Response> getLikedPosts({int? page}) async {
+    final queryParams = <String, dynamic>{};
+    if (page != null) queryParams['page'] = page;
+    return await get('/interactions/liked-posts', queryParameters: queryParams);
+  }
+
+  // Comment methods
+  Future<Response> getComments(int postId, {int? page}) async {
+    final queryParams = <String, dynamic>{};
+    if (page != null) queryParams['page'] = page;
+    return await get('/posts/$postId/comments', queryParameters: queryParams);
+  }
+
+  Future<Response> addComment(int postId, String content) async {
+    return await post('/posts/$postId/comments', data: {
+      'content': content,
+    });
+  }
+
+  Future<Response> updateComment(int commentId, String content) async {
+    return await put('/comments/$commentId', data: {
+      'content': content,
+    });
+  }
+
+  Future<Response> deleteComment(int commentId) async {
+    return await delete('/comments/$commentId');
+  }
+
+  Future<Response> getCommentReplies(int commentId, {int? page}) async {
+    try {
+      final token = await getToken();
+      final queryParams = <String, dynamic>{};
+      if (page != null) queryParams['page'] = page;
+      
+      final response = await _dio.get(
+        '/comments/$commentId/replies',
+        queryParameters: queryParams,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> addCommentReply(int postId, String content, int parentCommentId) async {
+    try {
+      final token = await getToken();
+      final response = await _dio.post(
+        '/posts/$postId/comments',
+        data: {
+          'content': content,
+          'parent_id': parentCommentId,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Hashtag methods
+  Future<Response> getHashtagSuggestions(String query) async {
+    try {
+      final token = await getToken();
+      final response = await _dio.get(
+        '/hashtags/suggestions',
+        queryParameters: {'query': query},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> searchHashtags(String query) async {
+    try {
+      final token = await getToken();
+      final response = await _dio.get(
+        '/hashtags/search',
+        queryParameters: {'query': query},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> getTrendingHashtags() async {
+    try {
+      final token = await getToken();
+      final response = await _dio.get(
+        '/hashtags/trending',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Duet methods
+  Future<Response> createDuet(int postId, int duetPostId) async {
+    try {
+      final token = await getToken();
+      final response = await _dio.post(
+        '/posts/$postId/duet',
+        data: {
+          'duet_post_id': duetPostId,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> getDuetFeed(int postId) async {
+    try {
+      final token = await getToken();
+      final response = await _dio.get(
+        '/posts/$postId/duet-feed',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> getUserDuetFeed() async {
+    try {
+      final token = await getToken();
+      final response = await _dio.get(
+        '/posts/duet-feed',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Personalized feed methods
+  Future<Response> getPersonalizedFeed({int? limit, int? page}) async {
+    try {
+      print('[DEBUG] API Service: Getting personalized feed...');
+      print('[DEBUG] API Service: Limit: $limit, Page: $page');
+      
+      final token = await getToken();
+      print('[DEBUG] API Service: Token obtained: ${token != null ? 'Yes' : 'No'}');
+      
+      final queryParams = <String, dynamic>{};
+      if (limit != null) queryParams['limit'] = limit;
+      if (page != null) queryParams['page'] = page;
+      
+      print('[DEBUG] API Service: Query params: $queryParams');
+      print('[DEBUG] API Service: Making request to /posts/feed/personalized');
+      
+      final response = await _dio.get(
+        '/posts/feed/personalized',
+        queryParameters: queryParams,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      
+      print('[DEBUG] API Service: Response received');
+      print('[DEBUG] API Service: Status code: ${response.statusCode}');
+      print('[DEBUG] API Service: Response data: ${response.data}');
+      
+      return response;
+    } catch (e) {
+      print('[DEBUG] API Service: Error in getPersonalizedFeed: $e');
+      rethrow;
+    }
+  }
+
+  Future<Response> refreshRecommendations() async {
+    try {
+      final token = await getToken();
+      final response = await _dio.post(
+        '/posts/feed/refresh',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
   }
 } 
