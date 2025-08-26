@@ -334,26 +334,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Future<void> _loadPersonalizedFeed() async {
     if (_isLoading) return;
     
-    print('[DEBUG] Starting to load personalized feed...');
-    
     setState(() {
       _isLoading = true;
       _hasError = false;
     });
     
     try {
-      print('[DEBUG] Calling API service getPersonalizedFeed...');
       final response = await _apiService.getPersonalizedFeed(limit: 20, page: 1);
-      
-      print('[DEBUG] API Response received:');
-      print('[DEBUG] Response status: ${response.statusCode}');
-      print('[DEBUG] Response data: ${response.data}');
       
       if (mounted && response.data['success']) {
         final posts = List<Map<String, dynamic>>.from(response.data['data']['posts']);
-        
-        print('[DEBUG] Posts extracted: ${posts.length} posts');
-        print('[DEBUG] First post data: ${posts.isNotEmpty ? posts.first : 'No posts'}');
         
         setState(() {
           _posts = posts;
@@ -375,8 +365,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           }
         });
         
-        print('[DEBUG] State updated with ${_posts.length} posts');
-        
         // Load interaction counts for all posts
         for (int i = 0; i < posts.length; i++) {
           await _loadInteractionCounts(i);
@@ -384,13 +372,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         
         // Initialize video controllers for video posts
         _initializeVideoControllers();
-        
-        print('[DEBUG] Feed loading completed successfully');
       } else {
-        print('[DEBUG] API response not successful:');
-        print('[DEBUG] Success flag: ${response.data['success']}');
-        print('[DEBUG] Error message: ${response.data['message']}');
-        
         setState(() {
           _isLoading = false;
           _hasError = true;
@@ -398,10 +380,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       }
     } catch (e, stackTrace) {
-      print('[DEBUG] Error loading personalized feed:');
-      print('[DEBUG] Error: $e');
-      print('[DEBUG] Stack trace: $stackTrace');
-      
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -575,71 +553,66 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
   }
 
-  Future<void> _loadComments() async {
+  Future<void> _loadComments([StateSetter? modalSetState]) async {
     if (_commentsLoading) return;
     
-    print('[DEBUG] Loading comments for current video');
+    // Set loading state immediately and clear comments
+    setState(() {
+      _commentsLoading = true;
+      _comments = []; // Clear existing comments while loading
+    });
     
-    // Set loading state immediately
-    if (mounted) {
-      setState(() {
-        _commentsLoading = true;
-      });
-    }
+    // Also update modal if callback provided
+    modalSetState?.call(() {});
     
     try {
       final postId = _posts[_currentPage]['id'];
-      print('[DEBUG] Calling getComments API for postId: $postId');
       final response = await _apiService.getComments(postId);
-      print('[DEBUG] Get comments response: ${response.data}');
       
-      if (mounted && response.data['success']) {
+      if (response.data['success']) {
         final comments = List<Map<String, dynamic>>.from(response.data['data']['data'] ?? []);
         
-        // Update comments immediately without waiting for setState
-        _comments = comments;
-        
-        // Update UI in next frame for better performance
-        if (mounted) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _commentsLoading = false;
-              });
-            }
-          });
+        // Process comments to extract replies
+        for (var comment in comments) {
+          final commentId = comment['id'];
+          final replies = comment['replies'] ?? [];
+          
+          // Store replies for this comment
+          if (replies.isNotEmpty) {
+            _commentReplies[commentId] = List<Map<String, dynamic>>.from(replies);
+          }
+          
+          // Add replies count to comment
+          comment['replies_count'] = replies.length;
         }
         
-        print('[DEBUG] Loaded ${_comments.length} comments');
+        // Update comments and UI
+        setState(() {
+          _comments = comments;
+          _commentsLoading = false;
+        });
+        
+        // Also update modal if callback provided
+        modalSetState?.call(() {});
+        
+        print('[DEBUG] Comments loaded: ${_comments.length}, Loading: $_commentsLoading');
       } else {
-        print('[ERROR] Get comments failed: ${response.data}');
-        if (mounted) {
+        setState(() {
           _comments = [];
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _commentsLoading = false;
-              });
-            }
-          });
-        }
+          _commentsLoading = false;
+        });
+        modalSetState?.call(() {});
       }
     } catch (e) {
-      print('[ERROR] Error loading comments: $e');
-      if (mounted) {
+      setState(() {
         _comments = [];
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _commentsLoading = false;
-            });
-          }
-        });
-      }
+        _commentsLoading = false;
+      });
+      modalSetState?.call(() {});
     }
   }
 
-  Future<void> _addComment() async {
+  Future<void> _addComment([StateSetter? modalSetState]) async {
     if (_commentController.text.trim().isEmpty) return;
     
     final content = _commentController.text.trim();
@@ -651,10 +624,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       
       if (mounted && response.data['success']) {
         // Refresh comments to show the new comment
-        await _loadComments();
+        await _loadComments(modalSetState);
       }
     } catch (e) {
-      print('[ERROR] Error adding comment: $e');
+      // Handle error silently
     }
   }
 
@@ -853,8 +826,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return post['allow_duet'] == true && post['is_prime'] != true;
   }
 
-  void _showComments() {
-    // Show modal immediately
+      void _showComments() {
+    // Show modal immediately and load comments after modal is built
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -863,11 +836,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        // Start loading comments immediately when modal opens
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _loadComments();
-        });
-        
         return Padding(
           padding: MediaQuery.of(context).viewInsets,
           child: DraggableScrollableSheet(
@@ -876,8 +844,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             minChildSize: 0.3,
             maxChildSize: 0.95,
             builder: (context, scrollController) {
-              return Column(
-                children: [
+              return StatefulBuilder(
+                builder: (context, setModalState) {
+                  // Start loading comments when modal opens, but only once
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_comments.isEmpty && !_commentsLoading) {
+                      _loadComments(setModalState);
+                    }
+                  });
+                  
+                  return Column(
+                    children: [
                   Container(
                     width: 40,
                     height: 5,
@@ -893,42 +870,79 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     child: _commentsLoading
                         ? ListView.builder(
                             controller: scrollController,
-                            itemCount: 5,
-                            itemBuilder: (context, i) => ListTile(
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              title: Container(
-                                width: 120,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[800],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                              subtitle: Column(
+                            itemCount: 8,
+                            itemBuilder: (context, i) => Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  // Avatar skeleton
                                   Container(
-                                    width: double.infinity,
-                                    height: 14,
+                                    width: 40,
+                                    height: 40,
                                     decoration: BoxDecoration(
                                       color: Colors.grey[800],
-                                      borderRadius: BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    width: 80,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[800],
-                                      borderRadius: BorderRadius.circular(4),
+                                  const SizedBox(width: 12),
+                                  // Content skeleton
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Name skeleton
+                                        Container(
+                                          width: 120,
+                                          height: 16,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Comment text skeleton
+                                        Container(
+                                          width: double.infinity,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          width: MediaQuery.of(context).size.width * 0.6,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Time and actions skeleton
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 60,
+                                              height: 12,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[800],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Container(
+                                              width: 40,
+                                              height: 12,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[800],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
@@ -942,7 +956,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   style: TextStyle(color: Colors.white70, fontSize: 16),
                                 ),
                               )
-                            : ListView.builder(
+                                                        : ListView.builder(
                                 controller: scrollController,
                                 itemCount: _comments.length,
                                 itemBuilder: (context, i) {
@@ -985,9 +999,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                                   const SizedBox(width: 12),
                                                   GestureDetector(
                                                     onTap: () => _toggleReplies(commentId),
-                                                    child: Text(
-                                                      '${repliesCount} ${repliesCount == 1 ? 'reply' : 'replies'}',
-                                                      style: const TextStyle(color: Colors.amber, fontSize: 12),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          showReplies ? 'Hide' : 'Show',
+                                                          style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w500),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Text(
+                                                          '${repliesCount} ${repliesCount == 1 ? 'reply' : 'replies'}',
+                                                          style: const TextStyle(color: Colors.amber, fontSize: 12),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
                                                 ],
@@ -1032,33 +1056,53 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                         ),
                                       // Replies section
                                       if (showReplies && replies.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(left: 60, right: 16),
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 60, right: 16, top: 8),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.05),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                          ),
                                           child: Column(
-                                            children: replies.map((reply) => ListTile(
-                                              leading: CircleAvatar(
-                                                backgroundColor: Colors.amber.withOpacity(0.7),
-                                                radius: 12,
-                                                child: Text(
-                                                  reply['user']?['name']?.toString().substring(0, 1).toUpperCase() ?? 'U',
-                                                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10),
-                                                ),
-                                              ),
-                                              title: Text(
-                                                reply['user']?['name']?.toString() ?? 'Unknown User',
-                                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 12),
-                                              ),
-                                              subtitle: Column(
+                                            children: replies.map((reply) => Padding(
+                                              padding: const EdgeInsets.only(bottom: 12),
+                                              child: Row(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(
-                                                    reply['content']?.toString() ?? '',
-                                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                                  CircleAvatar(
+                                                    backgroundColor: Colors.amber.withOpacity(0.7),
+                                                    radius: 14,
+                                                    child: Text(
+                                                      reply['user']?['name']?.toString().substring(0, 1).toUpperCase() ?? 'U',
+                                                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11),
+                                                    ),
                                                   ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    _formatCommentTime(reply['created_at']),
-                                                    style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Row(
+                                                          children: [
+                                                            Text(
+                                                              reply['user']?['name']?.toString() ?? 'Unknown User',
+                                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13),
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            Text(
+                                                              _formatCommentTime(reply['created_at']),
+                                                              style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        Text(
+                                                          reply['content']?.toString() ?? '',
+                                                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 ],
                                               ),
@@ -1106,17 +1150,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 borderSide: BorderSide.none,
                               ),
                             ),
+                            onSubmitted: (_) => _addComment(setModalState),
                           ),
                         ),
                         const SizedBox(width: 8),
                         IconButton(
                           icon: const Icon(Icons.send, color: Colors.amber),
-                          onPressed: _addComment,
+                          onPressed: () => _addComment(setModalState),
                         ),
                       ],
                     ),
                   ),
                 ],
+                  );
+                },
               );
             },
           ),

@@ -386,28 +386,11 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Refresh token
+  // Refresh token - disabled since tokens don't expire
   Future<bool> refreshToken() async {
-    if (_isRefreshing) return false;
-    
-    try {
-      _isRefreshing = true;
-      notifyListeners();
-
-      // Try to fetch user profile to verify token
-      await _fetchUserProfile();
-      
-      _isRefreshing = false;
-      notifyListeners();
-      return isAuthenticated;
-    } catch (e) {
-      _isRefreshing = false;
-      notifyListeners();
-      
-      // Token is invalid, logout
-      await logout();
-      return false;
-    }
+    // Tokens don't expire, so refresh is not needed
+    // Simply return current authentication status
+    return isAuthenticated;
   }
 
   // Update user profile

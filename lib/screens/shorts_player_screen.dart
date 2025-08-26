@@ -20,6 +20,7 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
   late List<bool> _liked;
   late List<int> _likeCounts;
   late List<bool> _saved;
+  late List<int> _commentCounts;
   // Add play/pause state
   late List<bool> _isPlaying;
   
@@ -29,6 +30,18 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
   // Add loading states for interactions
   late List<bool> _likeLoading;
   late List<bool> _saveLoading;
+  
+  // Comments state
+  List<Map<String, dynamic>> _comments = [];
+  bool _commentsLoading = false;
+  final TextEditingController _commentController = TextEditingController();
+  
+  // Comment replies state
+  Map<int, List<Map<String, dynamic>>> _commentReplies = {};
+  Map<int, bool> _repliesLoading = {};
+  Map<int, bool> _showReplies = {};
+  Map<int, bool> _showReplyInput = {};
+  Map<int, TextEditingController> _replyControllers = {};
 
   @override
   void initState() {
@@ -57,6 +70,7 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
     _liked = List.generate(widget.videos.length, (_) => false);
     _likeCounts = List.generate(widget.videos.length, (i) => 1000 + i * 100); // placeholder
     _saved = List.generate(widget.videos.length, (_) => false);
+    _commentCounts = List.generate(widget.videos.length, (i) => 50 + i * 10); // placeholder
     _isPlaying = List.generate(widget.videos.length, (_) => false);
     _likeLoading = List.generate(widget.videos.length, (_) => false);
     _saveLoading = List.generate(widget.videos.length, (_) => false);
@@ -83,6 +97,7 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
           final data = response.data['data'];
           setState(() {
             _likeCounts[i] = data['likes_count'] ?? 0;
+            _commentCounts[i] = data['comments_count'] ?? 0;
             _liked[i] = data['is_liked'] ?? false;
             _saved[i] = data['is_saved'] ?? false;
           });
@@ -182,7 +197,180 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
     }
   }
 
+  Future<void> _loadComments() async {
+    if (_commentsLoading) return;
+    
+    print('[DEBUG] Loading comments for current video');
+    setState(() {
+      _commentsLoading = true;
+      _comments = []; // Clear existing comments while loading
+    });
+    
+    try {
+      final postId = widget.videos[_currentPage]['id'];
+      print('[DEBUG] Calling getComments API for postId: $postId');
+      final response = await _apiService.getComments(postId);
+      print('[DEBUG] Get comments response: ${response.data}');
+      
+      if (mounted && response.data['success']) {
+        final comments = List<Map<String, dynamic>>.from(response.data['data']['data'] ?? []);
+        
+        // Process comments to extract replies
+        for (var comment in comments) {
+          final commentId = comment['id'];
+          final replies = comment['replies'] ?? [];
+          
+          // Store replies for this comment
+          if (replies.isNotEmpty) {
+            _commentReplies[commentId] = List<Map<String, dynamic>>.from(replies);
+          }
+          
+          // Add replies count to comment
+          comment['replies_count'] = replies.length;
+        }
+        
+        setState(() {
+          _comments = comments;
+          _commentsLoading = false;
+        });
+        print('[DEBUG] Loaded ${_comments.length} comments with replies');
+      } else {
+        print('[ERROR] Get comments failed: ${response.data}');
+        if (mounted) {
+          setState(() {
+            _comments = [];
+            _commentsLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('[ERROR] Error loading comments: $e');
+      if (mounted) {
+        setState(() {
+          _comments = [];
+          _commentsLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _addComment() async {
+    if (_commentController.text.trim().isEmpty) return;
+    
+    final content = _commentController.text.trim();
+    _commentController.clear();
+    
+    try {
+      final postId = widget.videos[_currentPage]['id'];
+      final response = await _apiService.addComment(postId, content);
+      
+      if (mounted && response.data['success']) {
+        // Refresh comments to show the new comment
+        await _loadComments();
+      }
+    } catch (e) {
+      print('[ERROR] Error adding comment: $e');
+    }
+  }
+
+  // Comment replies methods
+  Future<void> _loadCommentReplies(int commentId) async {
+    if (_repliesLoading[commentId] == true) return;
+    
+    setState(() {
+      _repliesLoading[commentId] = true;
+    });
+    
+    try {
+      final response = await _apiService.getCommentReplies(commentId);
+      
+      if (mounted && response.data['success']) {
+        setState(() {
+          _commentReplies[commentId] = List<Map<String, dynamic>>.from(response.data['data']['data']);
+          _repliesLoading[commentId] = false;
+        });
+      }
+    } catch (e) {
+      print('[ERROR] Error loading comment replies: $e');
+      if (mounted) {
+        setState(() {
+          _repliesLoading[commentId] = false;
+        });
+      }
+    }
+  }
+
+  void _toggleReplies(int commentId) {
+    setState(() {
+      _showReplies[commentId] = !(_showReplies[commentId] ?? false);
+    });
+    
+    // Load replies if showing and not already loaded
+    if (_showReplies[commentId] == true && !_commentReplies.containsKey(commentId)) {
+      _loadCommentReplies(commentId);
+    }
+  }
+
+  void _toggleReplyInput(int commentId) {
+    setState(() {
+      _showReplyInput[commentId] = !(_showReplyInput[commentId] ?? false);
+    });
+  }
+
+  TextEditingController _getReplyController(int commentId) {
+    if (!_replyControllers.containsKey(commentId)) {
+      _replyControllers[commentId] = TextEditingController();
+    }
+    return _replyControllers[commentId]!;
+  }
+
+  Future<void> _addCommentReply(int commentId) async {
+    final controller = _getReplyController(commentId);
+    if (controller.text.trim().isEmpty) return;
+    
+    final content = controller.text.trim();
+    controller.clear();
+    
+    try {
+      final postId = widget.videos[_currentPage]['id'];
+      final response = await _apiService.addCommentReply(postId, content, commentId);
+      
+      if (mounted && response.data['success']) {
+        // Refresh comments to show the new reply
+        await _loadComments();
+        // Hide reply input
+        setState(() {
+          _showReplyInput[commentId] = false;
+        });
+      }
+    } catch (e) {
+      print('[ERROR] Error adding comment reply: $e');
+    }
+  }
+
+  String _formatCommentTime(String? createdAt) {
+    if (createdAt == null) return '';
+    try {
+      final date = DateTime.parse(createdAt);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+      
+      if (difference.inDays > 0) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m ago';
+      } else {
+        return 'now';
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
   void _showComments() {
+    // Show modal immediately
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -191,6 +379,11 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
+        // Start loading comments immediately when modal opens
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loadComments();
+        });
+        
         return Padding(
           padding: MediaQuery.of(context).viewInsets,
           child: DraggableScrollableSheet(
@@ -210,20 +403,272 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  const Text('Comments', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text('Comments (${_commentCounts[_currentPage]})', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 8),
                   Expanded(
-                    child: ListView.builder(
+                    child: _commentsLoading
+                        ? ListView.builder(
                       controller: scrollController,
                       itemCount: 8,
-                      itemBuilder: (context, i) => ListTile(
-                        leading: const CircleAvatar(
+                            itemBuilder: (context, i) => Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Avatar skeleton
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[800],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Content skeleton
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Name skeleton
+                                        Container(
+                                          width: 120,
+                                          height: 16,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Comment text skeleton
+                                        Container(
+                                          width: double.infinity,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          width: MediaQuery.of(context).size.width * 0.6,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Time and actions skeleton
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 60,
+                                              height: 12,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[800],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Container(
+                                              width: 40,
+                                              height: 12,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[800],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : _comments.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No comments yet. Be the first to comment!',
+                                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                                ),
+                              )
+                            : ListView.builder(
+                                controller: scrollController,
+                                itemCount: _comments.length,
+                                itemBuilder: (context, i) {
+                                  final comment = _comments[i];
+                                  final commentId = comment['id'];
+                                  final replies = _commentReplies[commentId] ?? [];
+                                  final showReplies = _showReplies[commentId] ?? false;
+                                  final repliesCount = comment['replies_count'] ?? 0;
+                                  
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      ListTile(
+                                        leading: CircleAvatar(
                           backgroundColor: Colors.amber,
-                          child: Icon(Icons.person, color: Colors.black),
-                        ),
-                        title: Text('User $i', style: const TextStyle(color: Colors.white)),
-                        subtitle: Text('This is a comment from user $i.', style: const TextStyle(color: Colors.white70)),
-                      ),
+                                          child: Text(
+                                            comment['user']?['name']?.toString().substring(0, 1).toUpperCase() ?? 'U',
+                                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                        title: Text(
+                                          comment['user']?['name']?.toString() ?? 'Unknown User',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              comment['content']?.toString() ?? '',
+                                              style: const TextStyle(color: Colors.white70),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  _formatCommentTime(comment['created_at']),
+                                                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                                ),
+                                                if (repliesCount > 0) ...[
+                                                  const SizedBox(width: 12),
+                                                  GestureDetector(
+                                                    onTap: () => _toggleReplies(commentId),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          showReplies ? 'Hide' : 'Show',
+                                                          style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w500),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Text(
+                                                          '${repliesCount} ${repliesCount == 1 ? 'reply' : 'replies'}',
+                                                          style: const TextStyle(color: Colors.amber, fontSize: 12),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                        trailing: IconButton(
+                                          icon: const Icon(Icons.reply, color: Colors.white54, size: 20),
+                                          onPressed: () => _toggleReplyInput(commentId),
+                                        ),
+                                      ),
+                                      // Reply input field
+                                      if (_showReplyInput[commentId] ?? false)
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 60, right: 16, bottom: 8),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: TextField(
+                                                  controller: _getReplyController(commentId),
+                                                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Reply to ${comment['user']?['name']}...',
+                                                    hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+                                                    filled: true,
+                                                    fillColor: Colors.white10,
+                                                    border: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(20),
+                                                      borderSide: BorderSide.none,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              IconButton(
+                                                icon: const Icon(Icons.send, color: Colors.amber, size: 20),
+                                                onPressed: () => _addCommentReply(commentId),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      // Replies section
+                                      if (showReplies && replies.isNotEmpty)
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 60, right: 16, top: 8),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.05),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                          ),
+                                          child: Column(
+                                            children: replies.map((reply) => Padding(
+                                              padding: const EdgeInsets.only(bottom: 12),
+                                              child: Row(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  CircleAvatar(
+                                                    backgroundColor: Colors.amber.withOpacity(0.7),
+                                                    radius: 14,
+                                                    child: Text(
+                                                      reply['user']?['name']?.toString().substring(0, 1).toUpperCase() ?? 'U',
+                                                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Row(
+                                                          children: [
+                                                            Text(
+                                                              reply['user']?['name']?.toString() ?? 'Unknown User',
+                                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13),
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                            Text(
+                                                              _formatCommentTime(reply['created_at']),
+                                                              style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        Text(
+                                                          reply['content']?.toString() ?? '',
+                                                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            )).toList(),
+                                          ),
+                                        ),
+                                      // Loading indicator for replies
+                                      if (showReplies && _repliesLoading[commentId] == true)
+                                        const Padding(
+                                          padding: EdgeInsets.only(left: 60, right: 16),
+                                          child: Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                                                  strokeWidth: 2,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
                     ),
                   ),
                   Padding(
@@ -232,6 +677,7 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
                       children: [
                         Expanded(
                           child: TextField(
+                            controller: _commentController,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
                               hintText: 'Add a comment...',
@@ -243,12 +689,13 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
                                 borderSide: BorderSide.none,
                               ),
                             ),
+                            onSubmitted: (_) => _addComment(),
                           ),
                         ),
                         const SizedBox(width: 8),
                         IconButton(
                           icon: const Icon(Icons.send, color: Colors.amber),
-                          onPressed: () {},
+                          onPressed: _addComment,
                         ),
                       ],
                     ),

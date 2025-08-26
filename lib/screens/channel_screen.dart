@@ -8,6 +8,8 @@ import 'dart:io';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:dio/dio.dart';
 import '../services/api_service.dart';
+import 'saved_posts_screen.dart';
+import 'camera_recording_screen.dart';
 
 // Skeleton loading widgets
 class _SkeletonLoader extends StatelessWidget {
@@ -556,9 +558,13 @@ class _ChannelScreenState extends State<ChannelScreen> {
                     _verticalDivider(),
                     GestureDetector(
                       onTap: () {
-                        _showSavedVideos(context);
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const SavedPostsScreen(),
+                          ),
+                        );
                       },
-                      child: Icon(Icons.favorite_border, color: Colors.brown, size: 20),
+                      child: Icon(Icons.bookmark_border, color: Colors.brown, size: 20),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -909,13 +915,20 @@ class _ChannelScreenState extends State<ChannelScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const Text(
+                          'For videos under 10 minutes, they will be automatically categorized as Short. For longer videos, they will be categorized as Max.',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         
                         // Tube Short Option
                         _buildContentTypeOption(
                           context,
                           'Tube Short',
-                          'Videos under 10 minutes',
+                          'Videos under 10 minutes (auto-detected)',
                           Icons.short_text,
                           Colors.blue,
                           'tube_short',
@@ -927,7 +940,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                         _buildContentTypeOption(
                           context,
                           'Tube Max',
-                          'Videos over 10 minutes',
+                          'Videos 10 minutes or longer (auto-detected)',
                           Icons.video_library,
                           Colors.green,
                           'tube_max',
@@ -1792,25 +1805,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
   }
 
   Widget _mediaCardWithSave(Map<String, dynamic> video) {
-    final videoUrl = video['media_files']?[0]?['file_path']?.toString() ?? '';
-    final isSaved = _savedVideos.contains(videoUrl);
-    return Stack(
-      children: [
-        _mediaCard(video),
-        Positioned(
-          top: 6,
-          right: 6,
-          child: GestureDetector(
-            onTap: () => _toggleSave(videoUrl),
-            child: Icon(
-              isSaved ? Icons.favorite : Icons.favorite_border,
-              color: isSaved ? Colors.red : Colors.white,
-              size: 20,
-            ),
-          ),
-        ),
-      ],
-    );
+    return _mediaCard(video);
   }
 
   void _toggleSave(String url) {
@@ -1824,7 +1819,544 @@ class _ChannelScreenState extends State<ChannelScreen> {
   }
 
   void _showUploadOptions(BuildContext parentContext) {
-    _showContentTypeSelectionModal(parentContext);
+    _showRecordOrUploadModal(parentContext);
+  }
+
+  void _showRecordOrUploadModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Padding(
+            padding: MediaQuery.of(context).viewInsets,
+            child: DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.5,
+              minChildSize: 0.3,
+              maxChildSize: 0.7,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Row(
+                          children: [
+                            const Text(
+                              'Create Video',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Option Selection
+                        const Text(
+                          'How would you like to create your video?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Record with Camera Option
+                        _buildRecordOrUploadOption(
+                          context,
+                          'Record with Camera',
+                          'Record a new video with filters',
+                          Icons.videocam,
+                          Colors.red,
+                          true, // isRecord
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Upload from Gallery Option
+                        _buildRecordOrUploadOption(
+                          context,
+                          'Upload from Gallery',
+                          'Choose an existing video to upload',
+                          Icons.photo_library,
+                          Colors.blue,
+                          false, // isRecord
+                        ),
+                        
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecordOrUploadOption(
+    BuildContext context,
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+    bool isRecord,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context); // Close current modal
+        if (isRecord) {
+          _showCameraRecordingScreen(context);
+        } else {
+          _showContentTypeSelectionModal(context);
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey[600]!,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.grey[500],
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCameraRecordingScreen(BuildContext context) async {
+    // Navigate to camera recording screen
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const CameraRecordingScreen(),
+      ),
+    );
+    
+    // If user recorded a video, handle the result
+    if (result != null && result is Map<String, dynamic>) {
+      final videoPath = result['videoPath'] as String?;
+      final duration = result['duration'] as double?;
+      final isRecorded = result['isRecorded'] as bool? ?? false;
+      
+      if (videoPath != null && duration != null && isRecorded) {
+        // Set the recorded video as selected and proceed with upload
+        setState(() {
+          _selectedVideo = File(videoPath);
+        });
+        
+        // Show upload modal with auto-categorization
+        _showUploadModalForRecordedVideo(context, videoPath, duration);
+      }
+    }
+  }
+
+  void _showUploadModalForRecordedVideo(BuildContext context, String videoPath, double duration) {
+    // Determine the content type based on duration for UI display
+    final contentType = duration < 600 ? 'tube_short' : 'tube_max';
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Padding(
+            padding: MediaQuery.of(context).viewInsets,
+            child: DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.85,
+              minChildSize: 0.5,
+              maxChildSize: 0.98,
+              builder: (context, scrollController) {
+                return StatefulBuilder(
+                  builder: (context, setModalState) {
+                    return SingleChildScrollView(
+                      controller: scrollController,
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header
+                            Row(
+                              children: [
+                                Text(
+                                  'Upload Recorded ${_getContentTypeTitle(contentType)}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  icon: const Icon(Icons.close, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Auto-categorization info
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.auto_awesome, color: Colors.amber),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Auto-Categorized',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Duration: ${_formatRecordingDuration(duration)} - Automatically categorized as ${_getContentTypeTitle(contentType)}',
+                                          style: TextStyle(
+                                            color: Colors.grey[300],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Video Preview
+                            _buildVideoPreview(),
+                            const SizedBox(height: 24),
+                            
+                            // Duet Toggle (only for tube_short and tube_max)
+                            if (contentType != 'tube_prime') ...[
+                              _buildDuetToggle(setModalState),
+                              const SizedBox(height: 24),
+                            ],
+                            
+                            // Thumbnail Selection
+                            const Text(
+                              'Thumbnail',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildThumbnailSelectionSection(setModalState),
+                            const SizedBox(height: 12),
+                            _buildThumbnailPreview(),
+                            const SizedBox(height: 24),
+                            
+                            // Description Field
+                            const Text(
+                              'Description (with hashtags)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: _descController,
+                              maxLines: 4,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: 'Write your description here... #hashtag',
+                                hintStyle: TextStyle(color: Colors.grey[400]),
+                                filled: true,
+                                fillColor: Colors.grey[800],
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            
+                            // Upload Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isUploading ? null : () => _handleRecordedVideoUpload(duration),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: _isUploading
+                                    ? const Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                            ),
+                                          ),
+                                          SizedBox(width: 12),
+                                          Text(
+                                            'Uploading...',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : const Text(
+                                        'Upload Video',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatRecordingDuration(double seconds) {
+    final duration = Duration(seconds: seconds.toInt());
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes);
+    final secs = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$secs';
+  }
+
+  Future<void> _handleRecordedVideoUpload(double duration) async {
+    print('=== RECORDED VIDEO UPLOAD DEBUG START ===');
+    print('Uploading recorded video with auto-categorization:');
+    print('Video: ${_selectedVideo?.path}');
+    print('Duration: $duration seconds');
+    print('Allow Duet: $_allowDuet');
+    print('Use Video Thumbnail: $_useVideoThumbnail');
+    print('Custom Thumbnail: ${_selectedThumbnail?.path}');
+    print('Description: ${_descController.text}');
+
+    try {
+      setState(() {
+        _isUploading = true;
+      });
+      
+      // Show upload progress modal immediately
+      _showUploadProgressModal();
+      
+      // Check if user is authenticated
+      final token = await _apiService.getToken();
+      if (token == null) {
+        throw Exception('User not authenticated. Please login again.');
+      }
+      
+      print('[UPLOAD] User authenticated with token: ${token.substring(0, 20)}...');
+
+      // 1. Upload video with duration
+      print('[UPLOAD] Uploading video...');
+      final videoRes = await _apiService.uploadMedia(_selectedVideo!, 'video', duration: duration);
+      print('[UPLOAD] Video upload response: ${videoRes.data}');
+      final videoMediaId = videoRes.data['data']['media_file_id'];
+      print('[UPLOAD] Video uploaded. Media ID: $videoMediaId');
+
+      // 2. Upload thumbnail (if custom or generated)
+      int? thumbnailMediaId;
+      if (!_useVideoThumbnail && _selectedThumbnail != null) {
+        print('[UPLOAD] Uploading custom thumbnail...');
+        final thumbnailRes = await _apiService.uploadMedia(_selectedThumbnail!, 'image');
+        print('[UPLOAD] Thumbnail upload response: ${thumbnailRes.data}');
+        thumbnailMediaId = thumbnailRes.data['data']['media_file_id'];
+        print('[UPLOAD] Thumbnail uploaded. Media ID: $thumbnailMediaId');
+      } else if (_useVideoThumbnail && _generatedThumbnails.isNotEmpty) {
+        print('[UPLOAD] Uploading generated thumbnail...');
+        final thumbnailRes = await _apiService.uploadMedia(_generatedThumbnails.first, 'image');
+        print('[UPLOAD] Generated thumbnail upload response: ${thumbnailRes.data}');
+        thumbnailMediaId = thumbnailRes.data['data']['media_file_id'];
+        print('[UPLOAD] Generated thumbnail uploaded. Media ID: $thumbnailMediaId');
+      }
+
+      // 3. Create post with auto-categorization based on duration
+      print('[UPLOAD] Creating post with auto-categorization...');
+      
+      // Extract hashtags from description
+      final description = _descController.text;
+      final hashtagRegex = RegExp(r'#\w+');
+      final hashtags = hashtagRegex.allMatches(description)
+          .map((match) => match.group(0)!.substring(1))
+          .toList();
+      
+      final postRes = await _apiService.createPostWithAutoCategorization(
+        videoDuration: duration,
+        description: description,
+        allowDuet: _allowDuet,
+        hashtags: hashtags.isNotEmpty ? hashtags : null,
+      );
+      
+      print('[UPLOAD] Post creation response: ${postRes.data}');
+      final postId = postRes.data['data']['post']['id'];
+      final determinedType = postRes.data['data']['determined_type'];
+      print('[UPLOAD] Post created with ID: $postId, Type: $determinedType');
+
+      // 4. Complete upload by associating media with post
+      print('[UPLOAD] Completing upload...');
+      final completeRes = await _apiService.completeUpload(
+        postId,
+        [videoMediaId],
+        thumbnailMediaId: thumbnailMediaId,
+      );
+      print('[UPLOAD] Complete upload response: ${completeRes.data}');
+
+      // 5. Reset state and show success
+      setState(() {
+        _isUploading = false;
+        _selectedVideo = null;
+        _selectedThumbnail = null;
+        _generatedThumbnails = [];
+        _descController.clear();
+        _allowDuet = true;
+        _useVideoThumbnail = true;
+      });
+
+      // Close upload progress modal
+      Navigator.of(context).pop();
+      
+      // Close upload modal
+      Navigator.of(context).pop();
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Video uploaded successfully as $determinedType!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      // Refresh the posts
+      _loadTubeShortPosts();
+      _loadTubeMaxPosts();
+      _loadTubePrimePosts();
+
+      print('=== RECORDED VIDEO UPLOAD DEBUG END ===');
+      
+    } catch (e) {
+      print('[UPLOAD ERROR] $e');
+      
+      setState(() {
+        _isUploading = false;
+      });
+
+      // Close any open modals
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Upload failed: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   Widget _buildVideoPreview() {
@@ -2198,7 +2730,7 @@ class _VideoPreviewCardState extends State<_VideoPreviewCard> {
   Widget build(BuildContext context) {
     return Container(
       width: 100,
-      height: 120,
+      height: 160,
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.black,

@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.252.39:8000/api';
+  static const String baseUrl = 'http://192.168.29.141:8000/api';
   static const String storageKey = 'auth_token';
   
   late Dio _dio;
@@ -35,11 +34,8 @@ class ApiService {
         handler.next(options);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
-          // Token expired or invalid
-          await _secureStorage.delete(key: storageKey);
-          // You can add navigation to login screen here
-        }
+        // Remove automatic token deletion on 401 errors
+        // Users should only be logged out when they manually logout
         handler.next(error);
       },
     ));
@@ -245,6 +241,24 @@ class ApiService {
   }) async {
     return await post('/posts', data: {
       'post_type_id': postTypeId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      'is_prime': isPrime,
+      'allow_duet': allowDuet,
+      if (hashtags != null) 'hashtags': hashtags,
+    });
+  }
+
+  Future<Response> createPostWithAutoCategorization({
+    required double videoDuration, // Duration in seconds
+    String? title,
+    String? description,
+    bool isPrime = false,
+    bool allowDuet = true,
+    List<String>? hashtags,
+  }) async {
+    return await post('/posts/auto-categorize', data: {
+      'video_duration': videoDuration,
       if (title != null) 'title': title,
       if (description != null) 'description': description,
       'is_prime': isPrime,

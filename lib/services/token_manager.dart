@@ -10,8 +10,7 @@ class TokenManager {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   Timer? _refreshTimer;
   
-  // Token expiry threshold (refresh 5 minutes before expiry)
-  static const Duration _refreshThreshold = Duration(minutes: 5);
+
   
   // Singleton pattern
   static final TokenManager _instance = TokenManager._internal();
@@ -53,59 +52,25 @@ class TokenManager {
     return null;
   }
 
-  // Check if token is expired
+  // Check if token is expired - disabled for non-expiring tokens
   Future<bool> isTokenExpired() async {
-    final expiry = await getTokenExpiry();
-    if (expiry == null) return true;
-    
-    return DateTime.now().isAfter(expiry);
+    // Tokens don't expire
+    return false;
   }
 
-  // Check if token needs refresh
+  // Check if token needs refresh - disabled for non-expiring tokens
   Future<bool> needsRefresh() async {
-    final expiry = await getTokenExpiry();
-    if (expiry == null) return true;
-    
-    final timeUntilExpiry = expiry.difference(DateTime.now());
-    return timeUntilExpiry <= _refreshThreshold;
+    // Tokens don't expire, so never need refresh
+    return false;
   }
 
-  // Schedule token refresh
+  // Schedule token refresh - disabled for non-expiring tokens
   void _scheduleTokenRefresh(DateTime? expiry) {
     _refreshTimer?.cancel();
-    
-    if (expiry != null) {
-      final timeUntilRefresh = expiry.difference(DateTime.now()) - _refreshThreshold;
-      
-      if (timeUntilRefresh.isNegative) {
-        // Token is already expired or close to expiry, refresh immediately
-        _refreshToken();
-      } else {
-        // Schedule refresh
-        _refreshTimer = Timer(timeUntilRefresh, _refreshToken);
-      }
-    }
+    // Tokens don't expire, so no refresh scheduling needed
   }
 
-  // Refresh token
-  Future<void> _refreshToken() async {
-    try {
-      final refreshToken = await getRefreshToken();
-      if (refreshToken == null) {
-        // No refresh token available, user needs to login again
-        await clearTokens();
-        return;
-      }
 
-      // Call refresh token API
-      // This would typically make an API call to refresh the token
-      // For now, we'll just clear the tokens and let the user login again
-      await clearTokens();
-    } catch (e) {
-      // Refresh failed, clear tokens
-      await clearTokens();
-    }
-  }
 
   // Clear all tokens
   Future<void> clearTokens() async {
@@ -159,12 +124,10 @@ class TokenManager {
     _refreshTimer?.cancel();
   }
 
-  // Check if token is valid (not expired and exists)
+  // Check if token is valid (exists)
   Future<bool> isTokenValid() async {
     final token = await getToken();
-    if (token == null) return false;
-    
-    return !await isTokenExpired();
+    return token != null;
   }
 
   // Get token info for debugging

@@ -402,6 +402,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     print('[DEBUG] Loading comments for current video');
     setState(() {
       _commentsLoading = true;
+      _comments = []; // Clear existing comments while loading
     });
     
     try {
@@ -412,11 +413,26 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
       
       if (!_disposed && response.data['success']) {
         final comments = List<Map<String, dynamic>>.from(response.data['data']['data'] ?? []);
+        
+        // Process comments to extract replies
+        for (var comment in comments) {
+          final commentId = comment['id'];
+          final replies = comment['replies'] ?? [];
+          
+          // Store replies for this comment
+          if (replies.isNotEmpty) {
+            _commentReplies[commentId] = List<Map<String, dynamic>>.from(replies);
+          }
+          
+          // Add replies count to comment
+          comment['replies_count'] = replies.length;
+        }
+        
         setState(() {
           _comments = comments;
           _commentsLoading = false;
         });
-        print('[DEBUG] Loaded ${_comments.length} comments');
+        print('[DEBUG] Loaded ${_comments.length} comments with replies');
       } else {
         print('[ERROR] Get comments failed: ${response.data}');
         if (!_disposed) {
@@ -630,9 +646,85 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
                   const SizedBox(height: 8),
                   Expanded(
                     child: _commentsLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                        ? ListView.builder(
+                            controller: scrollController,
+                            itemCount: 8,
+                            itemBuilder: (context, i) => Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Avatar skeleton
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[800],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Content skeleton
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Name skeleton
+                                        Container(
+                                          width: 120,
+                                          height: 16,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Comment text skeleton
+                                        Container(
+                                          width: double.infinity,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          width: MediaQuery.of(context).size.width * 0.6,
+                                          height: 14,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[800],
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Time and actions skeleton
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 60,
+                                              height: 12,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[800],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Container(
+                                              width: 40,
+                                              height: 12,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[800],
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           )
                         : _comments.isEmpty
@@ -685,9 +777,19 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
                                                   const SizedBox(width: 12),
                                                   GestureDetector(
                                                     onTap: () => _toggleReplies(commentId),
-                                                    child: Text(
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          showReplies ? 'Hide' : 'Show',
+                                                          style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w500),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        Text(
                                                       '${repliesCount} ${repliesCount == 1 ? 'reply' : 'replies'}',
                                                       style: const TextStyle(color: Colors.amber, fontSize: 12),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
                                                 ],
@@ -734,33 +836,53 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
                                         ),
                                       // Replies section
                                       if (showReplies && replies.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(left: 60, right: 16),
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 60, right: 16, top: 8),
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.05),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                          ),
                                           child: Column(
-                                            children: replies.map((reply) => ListTile(
-                                              leading: CircleAvatar(
-                                                backgroundColor: Colors.grey[700],
-                                                radius: 16,
-                                                child: Text(
-                                                  reply['user']?['name']?.toString().substring(0, 1).toUpperCase() ?? 'U',
-                                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                                                ),
-                                              ),
-                                              title: Text(
-                                                reply['user']?['name']?.toString() ?? 'Unknown User',
-                                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14),
-                                              ),
-                                              subtitle: Column(
+                                            children: replies.map((reply) => Padding(
+                                              padding: const EdgeInsets.only(bottom: 12),
+                                              child: Row(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(
-                                                    reply['content']?.toString() ?? '',
-                                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                                  CircleAvatar(
+                                                    backgroundColor: Colors.amber.withOpacity(0.7),
+                                                    radius: 14,
+                                                child: Text(
+                                                  reply['user']?['name']?.toString().substring(0, 1).toUpperCase() ?? 'U',
+                                                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11),
+                                                    ),
                                                   ),
-                                                  const SizedBox(height: 2),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Row(
+                                                children: [
+                                                  Text(
+                                                              reply['user']?['name']?.toString() ?? 'Unknown User',
+                                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13),
+                                                  ),
+                                                            const SizedBox(width: 8),
                                                   Text(
                                                     _formatCommentTime(reply['created_at']),
                                                     style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 4),
+                                                        Text(
+                                                          reply['content']?.toString() ?? '',
+                                                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                                        ),
+                                                      ],
+                                                    ),
                                                   ),
                                                 ],
                                               ),
