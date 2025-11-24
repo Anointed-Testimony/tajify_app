@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.example.tajify_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "27.2.12479018"
 
     compileOptions {
@@ -25,8 +25,8 @@ android {
         applicationId = "com.example.tajify_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 23
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

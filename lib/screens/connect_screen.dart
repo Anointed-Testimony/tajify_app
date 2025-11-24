@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/api_service.dart';
+import '../services/storage_service.dart';
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key});
@@ -9,404 +11,1102 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
-  int _activeTab = 0; // 0: Contact, 1: Community, 2: Club, 3: Group, 4: Chats
-  int _activeCategory = 0;
-  final List<String> _mainTabs = ['Contact', 'Community', 'Club', 'Group', 'Chats'];
-  final List<String> _communityCategories = [
-    'Tech', 'Sports', 'Art', 'Music', 'Gaming', 'Business', 'Travel', 'Food',
-  ];
-  final List<Map<String, String>> _communities = [
-    {
-      'name': 'Flutter Devs',
-      'image': 'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80',
-      'highlight': 'Build beautiful apps with Flutter!'
-    },
-    {
-      'name': 'Football Fans',
-      'image': 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80',
-      'highlight': 'All about the beautiful game.'
-    },
-    {
-      'name': 'Art Lovers',
-      'image': 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80',
-      'highlight': 'Share and discuss art.'
-    },
-    {
-      'name': 'Music Makers',
-      'image': 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80',
-      'highlight': 'For musicians and fans.'
-    },
-  ];
-  final List<Map<String, dynamic>> _communityPosts = [
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/32.jpg',
-      'name': 'History',
-      'handle': '@ManifestH...',
-      'time': 'Jul 10',
-      'text': "July 10, 1832: Jackson’s Veto and the Beginning of the End for the 2nd National Bank\n\n1/ On this day, President Andrew Jackson shocked  the nation by vetoing the bill to recharter the Second Bank of the United States. It wasn’t just a policy decision—it was a declaration of war",
-      'image': 'https://upload.wikimedia.org/wikipedia/commons/4/4d/Andrew_jackson_head.jpg',
-      'comments': 32,
-      'likes': 130,
-      'shares': 499,
-      'views': '311K',
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/33.jpg',
-      'name': 'C and Assembly Developers',
-      'handle': '@forloopcodes',
-      'time': '13h',
-      'text': "my university is teaching prompt engineering instead of cuda or assembly\n\nis this a sign to drop out?",
-      'image': null,
-      'comments': 12,
-      'likes': 80,
-      'shares': 20,
-      'views': '2K',
-    },
-  ];
+  final ApiService _apiService = ApiService();
+  final StorageService _storageService = StorageService();
+  final TextEditingController _searchController = TextEditingController();
+  
+  // Communities
+  List<Map<String, dynamic>> _communities = [];
+  List<Map<String, dynamic>> _myCommunities = [];
+  bool _loadingCommunities = false;
+  bool _showMyCommunities = false;
+  
+  // Users
+  List<Map<String, dynamic>> _suggestedUsers = [];
+  List<Map<String, dynamic>> _searchResults = [];
+  List<Map<String, dynamic>> _following = [];
+  
+  bool _loading = false;
+  bool _searching = false;
+  String _searchQuery = '';
+  int _activeTab = 0; // 0: Communities, 1: People
+  
+  int? _currentUserId;
+  Map<int, bool> _followingStatus = {};
+  Map<int, bool> _followLoading = {};
+  Map<String, bool> _communityMemberships = {};
+  Map<String, bool> _joiningCommunity = {};
 
-  final List<Map<String, dynamic>> _groups = [
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/40.jpg',
-      'name': 'Hiking Buddies',
-      'desc': 'Find friends for your next adventure.',
-      'members': 120,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/women/41.jpg',
-      'name': 'Bookworms',
-      'desc': 'Discuss your favorite books.',
-      'members': 89,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/42.jpg',
-      'name': 'Gamers United',
-      'desc': 'All about gaming and eSports.',
-      'members': 200,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUserId();
+  }
 
-  final List<Map<String, dynamic>> _clubs = [
-    {
-      'avatar': 'https://randomuser.me/api/portraits/women/43.jpg',
-      'name': 'Pro Investors',
-      'desc': 'Exclusive club for investment tips.',
-      'members': 45,
-      'paid': true,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/44.jpg',
-      'name': 'Startup Founders',
-      'desc': 'Network with other founders.',
-      'members': 30,
-      'paid': true,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/women/45.jpg',
-      'name': 'Fitness Elite',
-      'desc': 'Premium fitness coaching.',
-      'members': 60,
-      'paid': true,
-    },
-  ];
+  Future<void> _loadCurrentUserId() async {
+    try {
+      final storedId = await _storageService.getUserId();
+      final parsedId = storedId != null ? int.tryParse(storedId) : null;
+      setState(() {
+        _currentUserId = parsedId;
+      });
+      
+      if (_currentUserId != null) {
+        await Future.wait([
+          _loadCommunities(),
+          _loadMyCommunities(),
+          _loadSuggestedUsers(),
+          _loadFollowing(),
+        ]);
+      }
+    } catch (e) {
+      print('[CONNECT] Error loading current user: $e');
+    }
+  }
 
-  final List<Map<String, dynamic>> _chats = [
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/50.jpg',
-      'name': 'Ada Lovelace',
-      'last': 'See you at the event!',
-      'time': '09:52pm',
-      'unread': 2,
-      'read': false,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/women/51.jpg',
-      'name': 'Grace Hopper',
-      'last': 'Thanks for the update.',
-      'time': '08:31pm',
-      'unread': 0,
-      'read': true,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/52.jpg',
-      'name': 'Alan Turing',
-      'last': 'Let\'s catch up soon.',
-      'time': '07:12pm',
-      'unread': 1,
-      'read': false,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/women/53.jpg',
-      'name': 'Joan Clarke',
-      'last': 'Sent the files.',
-      'time': 'Yesterday',
-      'unread': 0,
-      'read': true,
-    },
-    {
-      'avatar': 'https://randomuser.me/api/portraits/men/54.jpg',
-      'name': 'Dennis Ritchie',
-      'last': 'Haha 😂',
-      'time': 'Yesterday',
-      'unread': 0,
-      'read': true,
-    },
-  ];
+  Future<void> _loadCommunities() async {
+    setState(() {
+      _loadingCommunities = true;
+    });
+    
+    try {
+      final response = await _apiService.get('/communities');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        List<dynamic> communitiesList = [];
+        
+        if (data is Map<String, dynamic> && data['data'] is List) {
+          communitiesList = data['data'] as List<dynamic>;
+        } else if (data is List) {
+          communitiesList = data;
+        }
+        
+        setState(() {
+          _communities = communitiesList
+              .whereType<Map<String, dynamic>>()
+              .map((community) => Map<String, dynamic>.from(community))
+              .toList();
+        });
+        
+        await _checkCommunityMemberships();
+      }
+    } catch (e) {
+      print('[CONNECT] Error loading communities: $e');
+    } finally {
+      setState(() {
+        _loadingCommunities = false;
+      });
+    }
+  }
+
+  Future<void> _loadMyCommunities() async {
+    try {
+      final response = await _apiService.get('/communities/mine');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        List<dynamic> communitiesList = [];
+        
+        if (data is Map<String, dynamic> && data['data'] is List) {
+          communitiesList = data['data'] as List<dynamic>;
+        } else if (data is List) {
+          communitiesList = data;
+        }
+        
+        setState(() {
+          _myCommunities = communitiesList
+              .whereType<Map<String, dynamic>>()
+              .map((community) => Map<String, dynamic>.from(community))
+              .toList();
+        });
+      }
+    } catch (e) {
+      print('[CONNECT] Error loading my communities: $e');
+    }
+  }
+
+  Future<void> _checkCommunityMemberships() async {
+    try {
+      final response = await _apiService.get('/communities/memberships');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        List<dynamic> memberships = [];
+        
+        if (data is Map<String, dynamic> && data['data'] is List) {
+          memberships = data['data'] as List<dynamic>;
+        } else if (data is List) {
+          memberships = data;
+        }
+        
+        final membershipMap = <String, bool>{};
+        for (var membership in memberships) {
+          if (membership is Map<String, dynamic>) {
+            final uuid = membership['community_uuid']?.toString() ?? 
+                        membership['uuid']?.toString();
+            if (uuid != null) {
+              membershipMap[uuid] = true;
+            }
+          }
+        }
+        
+        setState(() {
+          _communityMemberships = membershipMap;
+        });
+      }
+    } catch (e) {
+      print('[CONNECT] Error checking memberships: $e');
+    }
+  }
+
+  Future<void> _joinCommunity(String uuid) async {
+    setState(() {
+      _joiningCommunity[uuid] = true;
+    });
+    
+    try {
+      final response = await _apiService.post('/communities/$uuid/join');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        setState(() {
+          _communityMemberships[uuid] = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Join request sent successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        await _loadMyCommunities();
+      }
+    } catch (e) {
+      print('[CONNECT] Error joining community: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _joiningCommunity[uuid] = false;
+      });
+    }
+  }
+
+  Future<void> _loadSuggestedUsers() async {
+    setState(() {
+      _loading = true;
+    });
+    
+    try {
+      // Try to get users from posts or use a different approach
+      // Get users from the posts endpoint to find active users
+      final postsResponse = await _apiService.getPosts(limit: 50);
+      if (postsResponse.statusCode == 200 && postsResponse.data['success'] == true) {
+        final data = postsResponse.data['data'];
+        List<dynamic> postsList = [];
+        
+        if (data is Map<String, dynamic> && data['data'] is List) {
+          postsList = data['data'] as List<dynamic>;
+        } else if (data is List) {
+          postsList = data;
+        }
+        
+        // Extract unique users from posts
+        final userMap = <int, Map<String, dynamic>>{};
+        for (var post in postsList) {
+          if (post is Map<String, dynamic>) {
+            final user = post['user'];
+            if (user is Map<String, dynamic>) {
+              final userId = user['id'];
+              if (userId != null && userId != _currentUserId && !userMap.containsKey(userId)) {
+                userMap[userId] = user;
+              }
+            }
+          }
+        }
+        
+        final users = userMap.values.take(20).toList();
+        
+        setState(() {
+          _suggestedUsers = users;
+          for (var user in users) {
+            final userId = user['id'];
+            if (userId != null) {
+              _followingStatus[userId] = false;
+              _followLoading[userId] = false;
+            }
+          }
+        });
+        
+        await _checkFollowStatuses(users);
+      }
+    } catch (e) {
+      print('[CONNECT] Error loading suggested users: $e');
+      // Fallback: try search with a common term
+      try {
+        final response = await _apiService.search('a', type: 'users');
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          final data = response.data['data'];
+          List<dynamic> usersList = [];
+          
+          if (data is Map<String, dynamic> && data['users'] is List) {
+            usersList = data['users'] as List<dynamic>;
+          } else if (data is List) {
+            usersList = data;
+          }
+          
+          final users = usersList
+              .whereType<Map<String, dynamic>>()
+              .where((user) => user['id'] != _currentUserId)
+              .take(20)
+              .map((user) => Map<String, dynamic>.from(user))
+              .toList();
+          
+          setState(() {
+            _suggestedUsers = users;
+            for (var user in users) {
+              final userId = user['id'];
+              if (userId != null) {
+                _followingStatus[userId] = false;
+                _followLoading[userId] = false;
+              }
+            }
+          });
+          
+          await _checkFollowStatuses(users);
+        }
+      } catch (e2) {
+        print('[CONNECT] Error in fallback user loading: $e2');
+      }
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _checkFollowStatuses(List<Map<String, dynamic>> users) async {
+    for (var user in users) {
+      final userId = user['id'];
+      if (userId != null) {
+        final isFollowing = _following.any((f) => f['id'] == userId);
+        setState(() {
+          _followingStatus[userId] = isFollowing;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadFollowing() async {
+    if (_currentUserId == null) return;
+    
+    try {
+      final profileResponse = await _apiService.getProfile();
+      if (profileResponse.statusCode == 200 && profileResponse.data['success'] == true) {
+        final username = profileResponse.data['data']['username']?.toString() ?? '';
+        if (username.isNotEmpty) {
+          final response = await _apiService.getFollowing(username);
+          if (response.statusCode == 200 && response.data['success'] == true) {
+            final data = response.data['data'];
+            List<dynamic> followingList = [];
+            
+            if (data is Map<String, dynamic> && data['data'] is List) {
+              followingList = data['data'] as List<dynamic>;
+            } else if (data is List) {
+              followingList = data;
+            }
+            
+            final following = followingList
+                .whereType<Map<String, dynamic>>()
+                .map((user) => Map<String, dynamic>.from(user))
+                .toList();
+            
+            setState(() {
+              _following = following;
+              for (var user in following) {
+                final userId = user['id'];
+                if (userId != null) {
+                  _followingStatus[userId] = true;
+                }
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('[CONNECT] Error loading following: $e');
+    }
+  }
+
+  Future<void> _searchUsers(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searchQuery = '';
+      });
+      return;
+    }
+    
+    setState(() {
+      _searching = true;
+      _searchQuery = query;
+    });
+    
+    try {
+      final response = await _apiService.search(query, type: 'users');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        List<dynamic> usersList = [];
+        
+        if (data is Map<String, dynamic> && data['users'] is List) {
+          usersList = data['users'] as List<dynamic>;
+        } else if (data is List) {
+          usersList = data;
+        }
+        
+        final users = usersList
+            .whereType<Map<String, dynamic>>()
+            .where((user) => user['id'] != _currentUserId)
+            .map((user) => Map<String, dynamic>.from(user))
+            .toList();
+        
+        setState(() {
+          _searchResults = users;
+          for (var user in users) {
+            final userId = user['id'];
+            if (userId != null) {
+              if (!_followingStatus.containsKey(userId)) {
+                _followingStatus[userId] = false;
+                _followLoading[userId] = false;
+              }
+            }
+          }
+        });
+        
+        await _checkFollowStatuses(users);
+      }
+    } catch (e) {
+      print('[CONNECT] Error searching users: $e');
+    } finally {
+      setState(() {
+        _searching = false;
+      });
+    }
+  }
+
+  Future<void> _toggleFollow(int userId) async {
+    setState(() {
+      _followLoading[userId] = true;
+    });
+    
+    try {
+      final response = await _apiService.toggleFollowUser(userId);
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final isFollowing = response.data['data']['is_following'] ?? false;
+        setState(() {
+          _followingStatus[userId] = isFollowing;
+        });
+      }
+    } catch (e) {
+      print('[CONNECT] Error toggling follow: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _followLoading[userId] = false;
+      });
+    }
+  }
+
+  String _getUserInitial(Map<String, dynamic> user) {
+    final name = user['name']?.toString() ?? '';
+    if (name.isEmpty) return '?';
+    return name[0].toUpperCase();
+  }
+
+  String? _getUserAvatar(Map<String, dynamic> user) {
+    return user['profile_avatar']?.toString() ?? 
+           user['profile_photo_url']?.toString() ??
+           user['user_avatar']?.toString();
+  }
+
+  String? _getCommunityImage(Map<String, dynamic> community) {
+    return community['image_url']?.toString() ?? 
+           community['avatar']?.toString();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF232323),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: FloatingActionButton(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          elevation: 4,
-          onPressed: () {
-            context.go('/home');
-          },
-          child: const Icon(Icons.home, size: 32),
+      backgroundColor: const Color(0xFF0F0F0F),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1A1A1A),
+                const Color(0xFF0F0F0F),
+                ],
+              ),
+            ),
         ),
+        leading: IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+          ),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
+        title: const Text(
+          'Connect',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            letterSpacing: 0.5,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.search, color: Colors.white, size: 20),
+            ),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: const Color(0xFF1A1A1A),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  title: Text(
+                    _activeTab == 0 ? 'Search Communities' : 'Search Users',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  content: TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: _activeTab == 0 
+                          ? 'Search communities...' 
+                          : 'Search by name or username...',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFFFB800), width: 2),
+                      ),
+                    ),
+                    onSubmitted: (value) {
+                      Navigator.of(context).pop();
+                      if (_activeTab == 0) {
+                        _searchCommunities(value);
+                      } else {
+                        _searchUsers(value);
+                      }
+                    },
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                          _searchResults = [];
+                        });
+                      },
+                      child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          if (_activeTab == 0) {
+                            _searchCommunities(_searchController.text);
+                          } else {
+                            _searchUsers(_searchController.text);
+                          }
+                        },
+                        child: const Text('Search', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      ),
+                            ),
+                          ],
+                        ),
+              );
+            },
+          ),
+        ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top App Bar (same as HomeScreen)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      body: Column(
+        children: [
+          // Tabs - Always visible
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withOpacity(0.05),
+                  Colors.white.withOpacity(0.02),
+                ],
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(child: _buildTab('Communities', 0)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildTab('People', 1)),
+                    ],
+                  ),
+                ),
+          
+          // Filter buttons for Communities - Always visible when on Communities tab
+          if (_activeTab == 0 && _searchQuery.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.03),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withOpacity(0.05),
+                    width: 1,
+                  ),
+                ),
+              ),
               child: Row(
                 children: [
-                  const Text('Tajify', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white)),
-                  const Spacer(),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.search, color: Colors.white, size: 20), 
-                    onPressed: () {}
+                  Expanded(
+                    child: _buildFilterButton(
+                      'All Communities',
+                      !_showMyCommunities,
+                      () => setState(() => _showMyCommunities = false),
+                    ),
                   ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.notifications_none, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.message_outlined, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                  // Vertical divider
-                  Container(
-                    height: 24,
-                    width: 1.2,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    color: Colors.grey[600],
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.person_outline, color: Colors.white, size: 20), 
-                    onPressed: () {}
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildFilterButton(
+                      'My Communities',
+                      _showMyCommunities,
+                      () => setState(() => _showMyCommunities = true),
+                    ),
                   ),
                 ],
               ),
             ),
-            // Main Content
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+          
+          // Content
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                if (_activeTab == 0) {
+                  await Future.wait([
+                    _loadCommunities(),
+                    _loadMyCommunities(),
+                  ]);
+                } else {
+                  await Future.wait([
+                    _loadSuggestedUsers(),
+                    _loadFollowing(),
+                  ]);
+                }
+              },
+              color: const Color(0xFFFFB800),
+              child: _activeTab == 0 ? _buildCommunitiesContent() : _buildPeopleContent(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(String label, int index) {
+    final isActive = _activeTab == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _activeTab = index;
+          _searchQuery = '';
+          _searchResults = [];
+          _searchController.clear();
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                )
+              : null,
+          color: isActive ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.amber.withOpacity(0.4),
+                    blurRadius: 12,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : null,
+        ),
+      child: Text(
+        label,
+          textAlign: TextAlign.center,
+        style: TextStyle(
+            color: isActive ? Colors.black : Colors.white70,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+            fontSize: 16,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                )
+              : null,
+          color: isActive ? null : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isActive ? Colors.transparent : Colors.white.withOpacity(0.15),
+            width: 1,
+          ),
+          boxShadow: isActive
+              ? [
+          BoxShadow(
+                    color: Colors.amber.withOpacity(0.3),
+                    blurRadius: 8,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: isActive ? Colors.black : Colors.white70,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommunitiesContent() {
+    if (_loadingCommunities) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+        ),
+      );
+    }
+
+    final displayCommunities = _searchQuery.isNotEmpty ? _searchResults : 
+                               _showMyCommunities ? _myCommunities : _communities;
+
+    if (displayCommunities.isEmpty) {
+      return _buildEmptyState(
+        _searchQuery.isNotEmpty 
+            ? 'No communities found' 
+            : _showMyCommunities
+                ? 'You haven\'t joined any communities yet'
+                : 'No communities available',
+        Icons.group_outlined,
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+          if (_searchQuery.isEmpty) ...[
+                Row(
+                  children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.amber.withOpacity(0.3),
+                        blurRadius: 8,
+                        spreadRadius: 0,
+                      ),
+                  ],
+                ),
+                  child: const Icon(Icons.group, color: Colors.black, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top Tabs
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: List.generate(_mainTabs.length, (i) =>
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: GestureDetector(
-                                onTap: () => setState(() => _activeTab = i),
-                                child: _tabButton(_mainTabs[i], _activeTab == i),
-                              ),
-                            ),
-                          ),
+            children: [
+              Text(
+                        _showMyCommunities ? 'My Communities' : 'Discover Communities',
+                style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (_activeTab == 4) ...[
-                        const SizedBox(height: 18),
-                        // Chats List (WhatsApp style)
-                        Column(
-                          children: List.generate(_chats.length, (i) => _chatConversationCard(_chats[i])),
+                      const SizedBox(height: 4),
+                      Text(
+                        _showMyCommunities
+                            ? 'Communities you\'ve joined'
+                            : 'Join communities and connect with like-minded people',
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
                         ),
-                      ] else if (_activeTab == 2) ...[
-                        const SizedBox(height: 18),
-                        // Club List (Paid Groups)
-                        Column(
-                          children: List.generate(_clubs.length, (i) => _groupOrClubCard(_clubs[i], isClub: true)),
-                        ),
-                      ] else if (_activeTab == 3) ...[
-                        const SizedBox(height: 18),
-                        // Group List
-                        Column(
-                          children: List.generate(_groups.length, (i) => _groupOrClubCard(_groups[i], isClub: false)),
-                        ),
-                      ] else if (_activeTab == 1) ...[
-                        const SizedBox(height: 16),
-                        // Community Category Tabs
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: List.generate(_communityCategories.length, (i) =>
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _activeCategory = i),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: _activeCategory == i ? Colors.amber : const Color(0xFF2A2A2A),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                    child: Text(
-                                      _communityCategories[i],
-                                      style: TextStyle(
-                                        color: _activeCategory == i ? Colors.black : Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        // Community Feed (Twitter/X style)
-                        Column(
-                          children: List.generate(_communityPosts.length, (i) => _communityPostCard(_communityPosts[i])),
-                        ),
-                      ] else ...[
-                        const SizedBox(height: 24),
-                        // Groups Section
-                        _sectionCard(
-                          title: 'Groups',
-                          items: [
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-                              name: 'Friends Forever',
-                              message: 'Hahahahah!',
-                              time: 'Today, 9:52pm',
-                              unread: 4,
-                            ),
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/men/33.jpg',
-                              name: 'Mera Gang',
-                              message: 'Kyuuuuu???',
-                              time: 'Yesterday, 12:31pm',
-                            ),
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/men/34.jpg',
-                              name: 'Hiking',
-                              message: 'It\'s not going to happen',
-                              time: 'Wednesday, 9:12am',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        // People Section
-                        _sectionCard(
-                          title: 'People',
-                          items: [
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/men/35.jpg',
-                              name: 'Anil',
-                              message: 'April fool\'s day',
-                              time: 'Today, 9:52pm',
-                              read: true,
-                            ),
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/men/36.jpg',
-                              name: 'Chuuthiya',
-                              message: 'Baag',
-                              time: 'Today, 12:19pm',
-                              unread: 1,
-                            ),
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/women/37.jpg',
-                              name: 'Mary ma\'am',
-                              message: 'You have to report it...',
-                              time: 'Today, 2:40pm',
-                            ),
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/men/38.jpg',
-                              name: 'Bill Gates',
-                              message: 'Nevermind bro',
-                              time: 'Yesterday, 12:31pm',
-                              read: true,
-                            ),
-                            _chatItem(
-                              avatar: 'https://randomuser.me/api/portraits/women/39.jpg',
-                              name: 'Victoria H',
-                              message: 'Okay, brother. let\'s see...',
-                              time: 'Wednesday, 11:22am',
-                              read: true,
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
+            ],
+          ),
+            const SizedBox(height: 20),
+          ],
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: displayCommunities.length,
+            itemBuilder: (context, index) {
+              return _buildCommunityCard(displayCommunities[index]);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommunityCard(Map<String, dynamic> community) {
+    final uuid = community['uuid']?.toString() ?? '';
+    final isMember = uuid.isNotEmpty && (_communityMemberships[uuid] ?? false);
+    final isJoining = uuid.isNotEmpty && (_joiningCommunity[uuid] ?? false);
+    final image = _getCommunityImage(community);
+    final name = community['name']?.toString() ?? 'Unknown Community';
+    final description = community['description']?.toString() ?? '';
+    final joinPolicy = community['join_policy']?.toString() ?? 'open';
+    
+    return GestureDetector(
+      onTap: () {
+        if (uuid.isNotEmpty) {
+          context.go('/community/$uuid');
+        }
+      },
+      child: Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.08),
+            Colors.white.withOpacity(0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.15),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Community Image/Header
+          Stack(
+            children: [
+              Container(
+                height: 100,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  gradient: image == null || image.isEmpty
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                        )
+                      : null,
+                ),
+                child: image != null && image.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Image.network(
+                          image,
+              fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                ),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.group, color: Colors.white, size: 32),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.group, color: Colors.white, size: 32),
+                        ),
+                      ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                children: [
+                      Icon(
+                        joinPolicy == 'open' ? Icons.public : Icons.lock,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 4),
+                  Text(
+                        joinPolicy == 'open' ? 'Open' : 'Private',
+                    style: const TextStyle(
+                      color: Colors.white,
+                          fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                ],
               ),
             ),
-            // Bottom Navigation Bar (same as HomeScreen)
-            BottomNavigationBar(
-              backgroundColor: const Color(0xFF232323),
-              selectedItemColor: Colors.amber,
-              unselectedItemColor: Colors.white,
-              type: BottomNavigationBarType.fixed,
-              showUnselectedLabels: true,
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.people_alt_outlined),
-                  label: 'Connect',
+          ),
+        ],
+      ),
+          
+          // Community Info
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+                  Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                        ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      if (description.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          description,
+                          style: TextStyle(
+                            color: Colors.grey[300],
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      ],
+                    ],
+                  ),
+                  if (!isMember && uuid.isNotEmpty)
+                    SizedBox(
+                      width: double.infinity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.amber.withOpacity(0.3),
+                              blurRadius: 8,
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: isJoining ? null : () => _joinCommunity(uuid),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: isJoining
+                                  ? const Center(
+                                      child: SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                        ),
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Join',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                        ),
+                      ),
+                    ),
+                      ),
+                    )
+                  else if (isMember)
+                    Container(
+                  width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Text(
+                        'Member',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.live_tv_outlined),
-                  label: 'Channel',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.storefront_outlined),
-                  label: 'Market',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.auto_graph_outlined),
-                  label: 'Earn',
-                ),
-              ],
-              currentIndex: 0, // Connect tab
-              onTap: (int index) {
-                if (index == 0) {
-                  return;
-                } else if (index == 1) {
-                  context.go('/channel');
-                } else if (index == 3) {
-                  context.go('/earn');
-                }
-                // Add navigation for other tabs as needed
-              },
+              ),
             ),
           ],
         ),
@@ -414,526 +1114,244 @@ class _ConnectScreenState extends State<ConnectScreen> {
     );
   }
 
-  Widget _tabButton(String label, bool active) {
+  Future<void> _searchCommunities(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _searchQuery = '';
+      });
+      return;
+    }
+    
+    setState(() {
+      _loadingCommunities = true;
+      _searchQuery = query;
+    });
+    
+    try {
+      final response = await _apiService.search(query, type: 'communities');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        List<dynamic> communitiesList = [];
+        
+        if (data is Map<String, dynamic> && data['communities'] is List) {
+          communitiesList = data['communities'] as List<dynamic>;
+        } else if (data is List) {
+          communitiesList = data;
+        }
+        
+        setState(() {
+          _searchResults = communitiesList
+              .whereType<Map<String, dynamic>>()
+              .map((community) => Map<String, dynamic>.from(community))
+              .toList();
+        });
+        
+        await _checkCommunityMemberships();
+      }
+    } catch (e) {
+      print('[CONNECT] Error searching communities: $e');
+    } finally {
+      setState(() {
+        _loadingCommunities = false;
+      });
+    }
+  }
+
+  Widget _buildPeopleContent() {
+    final isLoading = _searchQuery.isNotEmpty ? _searching : _loading;
+    
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+        ),
+      );
+    }
+
+    final displayUsers = _searchQuery.isNotEmpty ? _searchResults : _suggestedUsers;
+
+    if (displayUsers.isEmpty) {
+      return _buildEmptyState(
+        _searchQuery.isNotEmpty ? 'No users found' : 'No suggested users',
+        _searchQuery.isNotEmpty ? Icons.search_off : Icons.explore_outlined,
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      itemCount: displayUsers.length,
+      itemBuilder: (context, index) => _buildUserCard(displayUsers[index]),
+    );
+  }
+
+  Widget _buildUserCard(Map<String, dynamic> user) {
+    final userId = user['id'];
+    final isFollowing = userId != null ? (_followingStatus[userId] ?? false) : false;
+    final isLoading = userId != null ? (_followLoading[userId] ?? false) : false;
+    final avatar = _getUserAvatar(user);
+    
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: active ? Colors.amber : const Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: active
-            ? [BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 8, spreadRadius: 1)]
-            : [],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: active ? Colors.black : Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 15,
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
         ),
       ),
-    );
-  }
-
-  Widget _sectionCard({required String title, required List<Widget> items}) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF292929),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 16,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ...items,
-        ],
-      ),
-    );
-  }
-
-  Widget _chatItem({
-    required String avatar,
-    required String name,
-    required String message,
-    required String time,
-    int unread = 0,
-    bool read = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundImage: NetworkImage(avatar),
-            radius: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                    if (read)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 4.0),
-                        child: Icon(Icons.done_all, color: Colors.amber, size: 16),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                time,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
-                ),
-              ),
-              if (unread > 0)
-                Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.amber,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+          // Avatar
+          avatar != null && avatar.isNotEmpty
+              ? CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.transparent,
+                  backgroundImage: NetworkImage(avatar),
+                  onBackgroundImageError: (exception, stackTrace) {
+                    print('[CONNECT] Error loading avatar: $exception');
+                  },
+                )
+              : CircleAvatar(
+                  radius: 24,
+                  backgroundColor: const Color(0xFFFFB800),
                   child: Text(
-                    '$unread',
+                    _getUserInitial(user),
                     style: const TextStyle(
                       color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _communityCard(Map<String, String> community) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF292929),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.10),
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-            ),
-            child: Image.network(
-              community['image']!,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    community['name']!,
-                    style: const TextStyle(
-                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    community['highlight']!,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _communityPostCard(Map<String, dynamic> post) {
-    bool showMore = false;
-    String text = post['text'];
-    bool longText = text.length > 120;
-    return StatefulBuilder(
-      builder: (context, setState) => Container(
-        margin: const EdgeInsets.only(bottom: 18),
-        padding: const EdgeInsets.only(bottom: 12),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.white12, width: 1)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  backgroundImage: NetworkImage(post['avatar']),
-                  radius: 20,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              post['name'],
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              post['handle'],
-                              style: const TextStyle(color: Colors.white54, fontSize: 13),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              '· ${post['time']}',
-                              style: const TextStyle(color: Colors.white54, fontSize: 13),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const Spacer(),
-                          Icon(Icons.more_horiz, color: Colors.white54, size: 22),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Builder(
-              builder: (context) {
-                if (!longText) {
-                  return Text(
-                    text,
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                    maxLines: 8,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      showMore ? text : text.substring(0, 120) + '...',
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                      maxLines: showMore ? 8 : 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() => showMore = !showMore),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 2.0),
-                        child: Text(
-                          showMore ? 'Show less' : 'Show more',
-                          style: const TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            if (post['image'] != null) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  post['image'],
-                  width: double.infinity,
-                  height: 170,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _iconStatRow(Icons.chat_bubble_outline, post['comments'].toString()),
-                const SizedBox(width: 18),
-                _iconStatRow(Icons.favorite_border, post['likes'].toString()),
-                const SizedBox(width: 18),
-                _iconStatRow(Icons.share_outlined, post['shares'].toString()),
-                const SizedBox(width: 18),
-                _iconStatRow(Icons.remove_red_eye_outlined, post['views'].toString()),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _iconStatRow(IconData icon, String stat) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.white54, size: 18),
-        const SizedBox(width: 3),
-        Text(stat, style: const TextStyle(color: Colors.white54, fontSize: 13)),
-      ],
-    );
-  }
-
-  Widget _groupOrClubCard(Map<String, dynamic> data, {required bool isClub}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF292929),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.10),
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundImage: NetworkImage(data['avatar']),
-            radius: 28,
-          ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
+          
+          // User Info
           Expanded(
+            child: GestureDetector(
+              onTap: () {
+                final username = user['username']?.toString();
+                if (username != null && username.isNotEmpty) {
+                  context.go('/user/$username');
+                }
+              },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        data['name'],
+                  Text(
+                    user['name']?.toString() ?? 'Unknown User',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (isClub)
-                      Container(
-                        margin: const EdgeInsets.only(left: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('PAID', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  data['desc'],
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.people, color: Colors.amber, size: 16),
-                    const SizedBox(width: 4),
-                    Text('${data['members']} members', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '@${user['username']?.toString() ?? 'username'}',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-            ),
-            onPressed: () {},
-            child: const Text('Join', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          
+          // Follow Button
+          if (userId != null && userId != _currentUserId)
+                      Container(
+                        decoration: BoxDecoration(
+                gradient: isFollowing
+                    ? null
+                    : const LinearGradient(
+                        colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                      ),
+                color: isFollowing ? Colors.white.withOpacity(0.08) : null,
+                          borderRadius: BorderRadius.circular(8),
+                border: isFollowing
+                    ? Border.all(
+                        color: Colors.white.withOpacity(0.15),
+                        width: 1,
+                      )
+                    : null,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: isLoading ? null : () => _toggleFollow(userId),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                            ),
+                          )
+                        : Text(
+                            isFollowing ? 'Following' : 'Follow',
+                            style: TextStyle(
+                              color: isFollowing ? Colors.grey[300] : Colors.black,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
           ),
         ],
       ),
     );
   }
 
-  Widget _chatConversationCard(Map<String, dynamic> chat) {
-    return InkWell(
-      onTap: () {},
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: const Color(0xFF292929),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: NetworkImage(chat['avatar']),
-              radius: 26,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat['name'],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        chat['time'],
-                        style: const TextStyle(color: Colors.white54, fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat['last'],
-                          style: TextStyle(
-                            color: chat['unread'] > 0 ? Colors.white : Colors.white70,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (chat['read'])
-                        const Padding(
-                          padding: EdgeInsets.only(left: 4.0),
-                          child: Icon(Icons.done_all, color: Colors.amber, size: 16),
-                        ),
-                    ],
-                  ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withOpacity(0.08),
+                  Colors.white.withOpacity(0.03),
                 ],
               ),
-            ),
-            const SizedBox(width: 10),
-            if (chat['unread'] > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.amber,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${chat['unread']}',
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.1),
+                width: 2,
               ),
-          ],
-        ),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.grey[400],
+              size: 56,
+            ),
+          ),
+          const SizedBox(height: 24),
+                      Text(
+            message,
+                          style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

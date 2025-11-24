@@ -12,9 +12,21 @@ import '../screens/home_screen.dart';
 import '../screens/connect_screen.dart';
 import '../screens/channel_screen.dart';
 import '../screens/earning_center_screen.dart';
+import '../screens/blog_detail_screen.dart';
+import '../screens/search_screen.dart';
+import '../screens/notification_screen.dart';
+import '../screens/messages_screen.dart';
+import '../screens/personal_profile_screen.dart';
+import '../screens/public_profile_screen.dart';
+import '../screens/community_detail_screen.dart';
+import '../screens/create_content_screen.dart';
+import '../screens/tube_player_screen.dart';
+import '../screens/shorts_player_screen.dart';
+import '../screens/saved_posts_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
+  debugLogDiagnostics: true,
   redirect: (context, state) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
@@ -102,7 +114,7 @@ final GoRouter appRouter = GoRouter(
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => context.pop(),
             ),
           ),
           body: Center(
@@ -155,11 +167,87 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/channel',
-      builder: (context, state) => const ChannelScreen(),
+      builder: (context, state) {
+        final args = state.extra as Map<String, dynamic>?;
+        return ChannelScreen(openCreateModalOnStart: args?['openCreateModalOnStart'] == true);
+      },
     ),
     GoRoute(
       path: '/earn',
       builder: (context, state) => const EarningCenterScreen(),
+    ),
+    GoRoute(
+      path: '/blog/:uuid',
+      builder: (context, state) {
+        final uuid = state.pathParameters['uuid'] ?? '';
+        return BlogDetailScreen(blogUuid: uuid);
+      },
+    ),
+    GoRoute(
+      path: '/search',
+      builder: (context, state) => const SearchScreen(),
+    ),
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationScreen(),
+    ),
+    GoRoute(
+      path: '/messages',
+      builder: (context, state) => const MessagesScreen(),
+    ),
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) => const PersonalProfileScreen(),
+    ),
+    GoRoute(
+      path: '/user/:username',
+      builder: (context, state) {
+        final username = state.pathParameters['username'] ?? '';
+        return PublicProfileScreen(username: username);
+      },
+    ),
+    GoRoute(
+      path: '/community/:uuid',
+      builder: (context, state) {
+        final uuid = state.pathParameters['uuid'] ?? '';
+        return CommunityDetailScreen(communityUuid: uuid);
+      },
+    ),
+    GoRoute(
+      path: '/create',
+      builder: (context, state) => const CreateContentScreen(),
+    ),
+    GoRoute(
+      path: '/tube-player',
+      builder: (context, state) {
+        final args = state.extra as Map<String, dynamic>?;
+        if (args == null || args['videos'] == null || args['initialIndex'] == null) {
+          // Fallback to home if invalid args
+          return const HomeScreen();
+        }
+        return TubePlayerScreen(
+          videos: args['videos'] as List<Map<String, dynamic>>,
+          initialIndex: args['initialIndex'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/shorts-player',
+      builder: (context, state) {
+        final args = state.extra as Map<String, dynamic>?;
+        if (args == null || args['videos'] == null || args['initialIndex'] == null) {
+          // Fallback to home if invalid args
+          return const HomeScreen();
+        }
+        return ShortsPlayerScreen(
+          videos: args['videos'] as List<Map<String, dynamic>>,
+          initialIndex: args['initialIndex'] as int,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/saved-posts',
+      builder: (context, state) => const SavedPostsScreen(),
     ),
   ],
 ); 

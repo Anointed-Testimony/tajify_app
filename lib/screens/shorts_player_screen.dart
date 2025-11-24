@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
 
 class ShortsPlayerScreen extends StatefulWidget {
@@ -751,7 +752,13 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        context.pop();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFF232323),
       body: SafeArea(
         child: Column(

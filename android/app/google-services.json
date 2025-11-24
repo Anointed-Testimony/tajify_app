@@ -1,39 +1,29 @@
 {
   "project_info": {
-    "project_number": "45404915099",
-    "project_id": "tajify",
-    "storage_bucket": "tajify.appspot.com"
+    "project_number": "47313466019",
+    "project_id": "tajify-chat",
+    "storage_bucket": "tajify-chat.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:45404915099:android:com.example.tajify_app",
+        "mobilesdk_app_id": "1:47313466019:android:6780b6afb0186eac030516",
         "android_client_info": {
           "package_name": "com.example.tajify_app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "45404915099-09a2ufc5lci9qtdc0bfd0sis21lcqn81.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDbC5vyEWuIEduiCQgGwQDUATRGRilXia0"
+          "current_key": "AIzaSyA0Ffs_U_PnqV6aN0NR6OvQmYHVCp_huGM"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "45404915099-09a2ufc5lci9qtdc0bfd0sis21lcqn81.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
   ],
   "configuration_version": "1"
-} 
+}

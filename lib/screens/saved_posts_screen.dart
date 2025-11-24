@@ -72,23 +72,15 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
     final postType = post['post_type']?['name'] ?? '';
     
     if (postType == 'tube_short') {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => ShortsPlayerScreen(
-            videos: posts,
-            initialIndex: index,
-          ),
-        ),
-      );
+      context.push('/shorts-player', extra: {
+        'videos': posts,
+        'initialIndex': index,
+      });
     } else if (postType == 'tube_max' || postType == 'tube_prime') {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => TubePlayerScreen(
-            videos: posts,
-            initialIndex: index,
-          ),
-        ),
-      );
+      context.push('/tube-player', extra: {
+        'videos': posts,
+        'initialIndex': index,
+      });
     }
   }
 

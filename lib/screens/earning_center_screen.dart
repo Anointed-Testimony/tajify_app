@@ -1,5 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/api_service.dart';
+import '../services/storage_service.dart';
+import '../services/firebase_service.dart';
+import '../widgets/tajify_top_bar.dart';
 
 class EarningCenterScreen extends StatefulWidget {
   const EarningCenterScreen({Key? key}) : super(key: key);
@@ -12,6 +17,22 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+
+  final ApiService _apiService = ApiService();
+  final StorageService _storageService = StorageService();
+  
+  // Notification state
+  int _notificationUnreadCount = 0;
+  Timer? _notificationTimer;
+  
+  // Messages state
+  int _messagesUnreadCount = 0;
+  StreamSubscription? _messagesCountSubscription;
+  
+  // User profile state
+  String? _currentUserAvatar;
+  String _currentUserInitial = 'U';
+  Map<String, dynamic>? _currentUserProfile;
 
   @override
   void initState() {
@@ -27,11 +48,105 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
     _animationController.forward();
+    
+    // Load notification unread count
+    _loadNotificationUnreadCount();
+    
+    // Set up periodic refresh for notification count
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadNotificationUnreadCount();
+    });
+    
+    // Initialize Firebase and load messages count
+    _initializeFirebaseAndLoadMessagesCount();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final response = await _apiService.get('/auth/me');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _currentUserProfile = response.data['data'];
+            final name = _currentUserProfile?['name']?.toString();
+            if (name != null && name.isNotEmpty) {
+              _currentUserInitial = name[0].toUpperCase();
+            }
+            _currentUserAvatar = _currentUserProfile?['profile_avatar']?.toString();
+          });
+        }
+      }
+    } catch (e) {
+      // Fallback to local storage
+      try {
+        final name = await _storageService.getUserName();
+        final avatar = await _storageService.getUserProfilePicture();
+        if (mounted) {
+          setState(() {
+            if (name != null && name.isNotEmpty) {
+              _currentUserInitial = name[0].toUpperCase();
+            }
+            _currentUserAvatar = avatar;
+          });
+        }
+      } catch (e2) {
+        // ignore silently
+      }
+    }
+  }
+
+  Future<void> _initializeFirebaseAndLoadMessagesCount() async {
+    try {
+      await FirebaseService.initialize();
+      await FirebaseService.initializeAuth();
+      
+      // Get current user ID from API
+      try {
+        final response = await _apiService.get('/auth/me');
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          final userId = response.data['data']['id'] as int?;
+          if (userId != null && mounted) {
+            if (FirebaseService.isInitialized) {
+              _messagesCountSubscription = FirebaseService.getUnreadCountStream(userId)
+                  .listen((count) {
+                if (mounted) {
+                  setState(() {
+                    _messagesUnreadCount = count;
+                  });
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  Future<void> _loadNotificationUnreadCount() async {
+    try {
+      final response = await _apiService.get('/notifications/unread-count');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _notificationUnreadCount = response.data['data']['count'] ?? 0;
+          });
+        }
+      }
+    } catch (e) {
+      // ignore silently
+    }
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _notificationTimer?.cancel();
+    _messagesCountSubscription?.cancel();
     super.dispose();
   }
 
@@ -121,52 +236,27 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
       body: SafeArea(
         child: Column(
           children: [
-            // Top App Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  const Text('Tajify', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white)),
-                  const Spacer(),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.search, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.notifications_none, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.message_outlined, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                  // Vertical divider
-                  Container(
-                    height: 24,
-                    width: 1.2,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    color: Colors.grey[600],
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.person_outline, color: Colors.white, size: 20), 
-                    onPressed: () {}
-                  ),
-                ],
-              ),
+            TajifyTopBar(
+              onSearch: () => context.push('/search'),
+              onNotifications: () {
+                context.push('/notifications').then((_) {
+                  _loadNotificationUnreadCount();
+                });
+              },
+              onMessages: () {
+                context.push('/messages').then((_) {
+                  _initializeFirebaseAndLoadMessagesCount();
+                });
+              },
+              onAdd: () => context.go('/create'),
+              onAvatarTap: () => context.go('/profile'),
+              notificationCount: _notificationUnreadCount,
+              messageCount: _messagesUnreadCount,
+              avatarUrl: _currentUserAvatar,
+              displayLetter: _currentUserProfile?['name'] != null &&
+                      _currentUserProfile!['name'].toString().isNotEmpty
+                  ? _currentUserProfile!['name'].toString()[0].toUpperCase()
+                  : _currentUserInitial,
             ),
             // Header Section
             FadeTransition(

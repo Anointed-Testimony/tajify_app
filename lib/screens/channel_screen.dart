@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
@@ -6,10 +7,12 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:video_thumbnail/video_thumbnail.dart';
-import 'package:dio/dio.dart';
 import '../services/api_service.dart';
-import 'saved_posts_screen.dart';
+import '../services/firebase_service.dart';
 import 'camera_recording_screen.dart';
+import '../widgets/create_video_option_sheet.dart';
+import '../widgets/tajify_top_bar.dart';
+import '../services/storage_service.dart';
 
 // Skeleton loading widgets
 class _SkeletonLoader extends StatelessWidget {
@@ -261,10 +264,11 @@ class _VideoPlayerSkeleton extends StatelessWidget {
   }
 }
 
-enum TubeTab { none, short, max, prime }
+enum ChannelCategory { short, max, prime, blog, audio }
 
 class ChannelScreen extends StatefulWidget {
-  const ChannelScreen({super.key});
+  final bool openCreateModalOnStart;
+  const ChannelScreen({super.key, this.openCreateModalOnStart = false});
 
   @override
   State<ChannelScreen> createState() => _ChannelScreenState();
@@ -272,7 +276,7 @@ class ChannelScreen extends StatefulWidget {
 
 class _ChannelScreenState extends State<ChannelScreen> {
   int _selectedTab = 1; // Channel tab index
-  TubeTab _selectedTubeTab = TubeTab.none;
+  ChannelCategory _selectedCategory = ChannelCategory.short;
   
   // Upload state variables
   bool _allowDuet = true;
@@ -294,12 +298,36 @@ class _ChannelScreenState extends State<ChannelScreen> {
   final TextEditingController _descController = TextEditingController();
 
   // Real data from backend
+  static const int _tubePageSize = 12;
   List<Map<String, dynamic>> _tubeShortPosts = [];
   List<Map<String, dynamic>> _tubeMaxPosts = [];
   List<Map<String, dynamic>> _tubePrimePosts = [];
-  bool _isLoading = false;
+  bool _shortInitialLoading = false;
+  bool _shortMoreLoading = false;
+  bool _shortHasMore = true;
+  int _shortCurrentPage = 1;
+  String? _shortError;
+  bool _maxInitialLoading = false;
+  bool _maxMoreLoading = false;
+  bool _maxHasMore = true;
+  int _maxCurrentPage = 1;
+  String? _maxError;
+  bool _primeInitialLoading = false;
+  bool _primeMoreLoading = false;
+  bool _primeHasMore = true;
+  int _primeCurrentPage = 1;
+  String? _primeError;
+  List<Map<String, dynamic>> _blogPosts = [];
+  bool _blogInitialLoading = false;
+  bool _blogMoreLoading = false;
+  bool _blogHasMore = true;
+  int _blogCurrentPage = 1;
+  String? _blogError;
 
   final ApiService _apiService = ApiService();
+  final StorageService _storageService = StorageService();
+  String? _currentUserAvatar;
+  String _currentUserInitial = 'U';
 
   // Add hashtag suggestions state
   List<Map<String, dynamic>> _hashtagSuggestions = [];
@@ -307,70 +335,472 @@ class _ChannelScreenState extends State<ChannelScreen> {
   String _currentHashtagQuery = '';
   int _cursorPosition = 0;
 
+  // Scroll controller for infinite scroll
+  final ScrollController _scrollController = ScrollController();
+  
+  // Notification state
+  int _notificationUnreadCount = 0;
+  Timer? _notificationTimer;
+  
+  // Messages state
+  int _messagesUnreadCount = 0;
+  StreamSubscription? _messagesCountSubscription;
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadPosts();
+    if (widget.openCreateModalOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showUploadOptions(context);
+      });
+    }
+    
+    // Load notification unread count
+    _loadNotificationUnreadCount();
+    
+    // Set up periodic refresh for notification count
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _loadNotificationUnreadCount();
+    });
+    
+    // Initialize Firebase and load messages count
+    _initializeFirebaseAndLoadMessagesCount();
+    _loadLocalUserInfo();
+  }
+
+  Future<void> _loadLocalUserInfo() async {
+    try {
+      final name = await _storageService.getUserName();
+      final avatar = await _storageService.getUserProfilePicture();
+      if (!mounted) return;
+      setState(() {
+        if (name != null && name.isNotEmpty) {
+          _currentUserInitial = name[0].toUpperCase();
+        }
+        _currentUserAvatar = avatar;
+      });
+    } catch (e) {
+      // ignore silently
+    }
+  }
+  
+  Future<void> _initializeFirebaseAndLoadMessagesCount() async {
+    try {
+      await FirebaseService.initialize();
+      await FirebaseService.initializeAuth();
+      
+      // Get current user ID from API
+      try {
+        final response = await _apiService.get('/auth/me');
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          final userId = response.data['data']['id'] as int?;
+          if (userId != null && FirebaseService.isInitialized && mounted) {
+            _messagesCountSubscription = FirebaseService.getUnreadCountStream(userId)
+                .listen((count) {
+              if (mounted) {
+                setState(() {
+                  _messagesUnreadCount = count;
+                });
+              }
+            }, onError: (error) {
+              print('[MESSAGES] Error loading unread count: $error');
+            });
+          }
+        }
+      } catch (e) {
+        print('[MESSAGES] Error getting user ID: $e');
+      }
+    } catch (e) {
+      print('[MESSAGES] Error initializing Firebase: $e');
+    }
+  }
+  
+  Future<void> _loadNotificationUnreadCount() async {
+    try {
+      final response = await _apiService.getUnreadCount();
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _notificationUnreadCount = response.data['data']['unread_count'] ?? 0;
+          });
+        }
+      }
+    } catch (e) {
+      // Silently fail - notifications are not critical
+    }
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    _messagesCountSubscription?.cancel();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      // Load more when within 200 pixels of bottom
+      switch (_selectedCategory) {
+        case ChannelCategory.short:
+          if (_shortHasMore && !_shortMoreLoading && !_shortInitialLoading) {
+            _loadTubeShortPosts(loadMore: true);
+          }
+          break;
+        case ChannelCategory.max:
+          if (_maxHasMore && !_maxMoreLoading && !_maxInitialLoading) {
+            _loadTubeMaxPosts(loadMore: true);
+          }
+          break;
+        case ChannelCategory.prime:
+          if (_primeHasMore && !_primeMoreLoading && !_primeInitialLoading) {
+            _loadTubePrimePosts(loadMore: true);
+          }
+          break;
+        case ChannelCategory.blog:
+          if (_blogHasMore && !_blogMoreLoading && !_blogInitialLoading) {
+            _loadBlogPosts(loadMore: true);
+          }
+          break;
+        default:
+          break;
+      }
+    }
   }
 
   Future<void> _loadPosts() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
-      // Load all post types in parallel
       await Future.wait([
         _loadTubeShortPosts(),
         _loadTubeMaxPosts(),
         _loadTubePrimePosts(),
+        _loadBlogPosts(),
       ]);
     } catch (e) {
       print('Error loading posts: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
-  Future<void> _loadTubeShortPosts() async {
+  List<Map<String, dynamic>> _extractPosts(dynamic payload) {
+    if (payload is Map<String, dynamic>) {
+      final data = payload['data'];
+      if (data is List) {
+        return data.whereType<Map<String, dynamic>>().map((post) => Map<String, dynamic>.from(post)).toList();
+      }
+      if (data is Map<String, dynamic> && data['data'] is List) {
+        return (data['data'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map((post) => Map<String, dynamic>.from(post))
+            .toList();
+      }
+    } else if (payload is List) {
+      return payload.whereType<Map<String, dynamic>>().map((post) => Map<String, dynamic>.from(post)).toList();
+    }
+    return [];
+  }
+
+  String? _getThumbnail(Map<String, dynamic> video) {
+    final mediaFiles = video['media_files'];
+    if (mediaFiles is List && mediaFiles.isNotEmpty) {
+      final media = mediaFiles.first;
+      final thumb = media['thumbnail_path'] ?? media['thumbnail_url'] ?? media['thumbnail'];
+      if (thumb is String && thumb.isNotEmpty) {
+        return thumb;
+      }
+    }
+    final fallback = video['thumbnail'] ?? video['thumbnail_url'] ?? video['snippet_thumbnail'];
+    if (fallback is String && fallback.isNotEmpty) {
+      return fallback;
+    }
+    return null;
+  }
+
+  String _getPrimaryMediaUrl(Map<String, dynamic> video) {
+    final mediaFiles = video['media_files'];
+    if (mediaFiles is List && mediaFiles.isNotEmpty) {
+      final first = mediaFiles.first;
+      if (first is Map<String, dynamic>) {
+        final path = first['file_path'] ?? first['file_url'] ?? first['url'];
+        if (path is String && path.isNotEmpty) {
+          return path;
+        }
+      }
+    }
+    final fallback = video['video_url'] ??
+        video['media_url'] ??
+        video['file_path'] ??
+        video['file_url'] ??
+        video['url'];
+    return fallback?.toString() ?? '';
+  }
+
+  Future<void> _loadTubeShortPosts({bool loadMore = false}) async {
+    if (loadMore) {
+      if (_shortMoreLoading || !_shortHasMore) return;
+    } else {
+      if (_shortInitialLoading) return;
+      _shortHasMore = true;
+    }
+
+    final targetPage = loadMore ? _shortCurrentPage + 1 : 1;
+
+    setState(() {
+      if (loadMore) {
+        _shortMoreLoading = true;
+      } else {
+        _shortInitialLoading = true;
+        _shortError = null;
+      }
+    });
+
     try {
-      final response = await _apiService.getTubeShortPosts();
+      final response = await _apiService.getTubeShortPosts(page: targetPage, limit: _tubePageSize);
       if (response.data['success']) {
+        final posts = _extractPosts(response.data['data']);
+        if (!mounted) return;
         setState(() {
-          _tubeShortPosts = List<Map<String, dynamic>>.from(response.data['data']['data']);
+          if (loadMore) {
+            _tubeShortPosts.addAll(posts);
+          } else {
+            _tubeShortPosts = posts;
+          }
+          _shortCurrentPage = targetPage;
+          _shortHasMore = posts.length >= _tubePageSize;
+        });
+      } else if (!loadMore && mounted) {
+        setState(() {
+          _shortError = response.data['message']?.toString() ?? 'Failed to load videos.';
+          _shortHasMore = false;
         });
       }
     } catch (e) {
       print('Error loading tube short posts: $e');
+      if (!mounted) return;
+      setState(() {
+        if (!loadMore) {
+          _shortError = 'Failed to load videos.';
+        }
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        if (loadMore) {
+          _shortMoreLoading = false;
+        } else {
+          _shortInitialLoading = false;
+        }
+      });
     }
   }
 
-  Future<void> _loadTubeMaxPosts() async {
+  Future<void> _loadTubeMaxPosts({bool loadMore = false}) async {
+    if (loadMore) {
+      if (_maxMoreLoading || !_maxHasMore) return;
+    } else {
+      if (_maxInitialLoading) return;
+      _maxHasMore = true;
+    }
+
+    final targetPage = loadMore ? _maxCurrentPage + 1 : 1;
+
+    setState(() {
+      if (loadMore) {
+        _maxMoreLoading = true;
+      } else {
+        _maxInitialLoading = true;
+        _maxError = null;
+      }
+    });
+
     try {
-      final response = await _apiService.getTubeMaxPosts();
+      final response = await _apiService.getTubeMaxPosts(page: targetPage, limit: _tubePageSize);
       if (response.data['success']) {
+        final posts = _extractPosts(response.data['data']);
+        if (!mounted) return;
         setState(() {
-          _tubeMaxPosts = List<Map<String, dynamic>>.from(response.data['data']['data']);
+          if (loadMore) {
+            _tubeMaxPosts.addAll(posts);
+          } else {
+            _tubeMaxPosts = posts;
+          }
+          _maxCurrentPage = targetPage;
+          _maxHasMore = posts.length >= _tubePageSize;
+        });
+      } else if (!loadMore && mounted) {
+        setState(() {
+          _maxError = response.data['message']?.toString() ?? 'Failed to load videos.';
+          _maxHasMore = false;
         });
       }
     } catch (e) {
       print('Error loading tube max posts: $e');
+      if (!mounted) return;
+      setState(() {
+        if (!loadMore) {
+          _maxError = 'Failed to load videos.';
+        }
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        if (loadMore) {
+          _maxMoreLoading = false;
+        } else {
+          _maxInitialLoading = false;
+        }
+      });
     }
   }
 
-  Future<void> _loadTubePrimePosts() async {
+  Future<void> _loadBlogPosts({bool loadMore = false}) async {
+    if (loadMore) {
+      if (_blogMoreLoading || !_blogHasMore) return;
+      setState(() => _blogMoreLoading = true);
+    } else {
+      if (_blogInitialLoading) return;
+      setState(() {
+        _blogInitialLoading = true;
+        _blogError = null;
+      });
+    }
+
     try {
-      final response = await _apiService.getTubePrimePosts();
-      if (response.data['success']) {
+      final targetPage = loadMore ? _blogCurrentPage + 1 : 1;
+      final response = await _apiService.getBlogPosts(page: targetPage, limit: _tubePageSize);
+      
+      print('[DEBUG] Blog response: ${response.data}');
+      
+      if (mounted) {
+        List<Map<String, dynamic>> blogs = [];
+        
+        // Handle different response structures like the web version
+        if (response.data['success'] == true && response.data['data'] != null) {
+          final data = response.data['data'];
+          if (data is List) {
+            blogs = data.whereType<Map<String, dynamic>>().map((blog) => Map<String, dynamic>.from(blog)).toList();
+          } else if (data is Map<String, dynamic>) {
+            if (data['data'] is List) {
+              blogs = (data['data'] as List).whereType<Map<String, dynamic>>().map((blog) => Map<String, dynamic>.from(blog)).toList();
+            } else if (data['items'] is List) {
+              blogs = (data['items'] as List).whereType<Map<String, dynamic>>().map((blog) => Map<String, dynamic>.from(blog)).toList();
+            }
+          }
+        } else if (response.data is List) {
+          blogs = response.data.whereType<Map<String, dynamic>>().map((blog) => Map<String, dynamic>.from(blog)).toList();
+        } else if (response.data['data'] is List) {
+          blogs = (response.data['data'] as List).whereType<Map<String, dynamic>>().map((blog) => Map<String, dynamic>.from(blog)).toList();
+        }
+        
+        print('[DEBUG] Extracted ${blogs.length} blogs');
+        
         setState(() {
-          _tubePrimePosts = List<Map<String, dynamic>>.from(response.data['data']['data']);
+          if (loadMore) {
+            _blogPosts.addAll(blogs);
+            _blogCurrentPage = targetPage;
+            _blogHasMore = blogs.length >= _tubePageSize;
+            _blogMoreLoading = false;
+          } else {
+            _blogPosts = blogs;
+            _blogCurrentPage = 1;
+            _blogHasMore = blogs.length >= _tubePageSize;
+            _blogInitialLoading = false;
+          }
+          _blogError = null;
+        });
+      }
+    } catch (e) {
+      print('[ERROR] Error loading blog posts: $e');
+      if (mounted) {
+        setState(() {
+          if (loadMore) {
+            _blogMoreLoading = false;
+          } else {
+            _blogInitialLoading = false;
+            _blogError = e.toString();
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _loadTubePrimePosts({bool loadMore = false}) async {
+    if (loadMore) {
+      if (_primeMoreLoading || !_primeHasMore) return;
+    } else {
+      if (_primeInitialLoading) return;
+      _primeHasMore = true;
+    }
+
+    final targetPage = loadMore ? _primeCurrentPage + 1 : 1;
+
+    setState(() {
+      if (loadMore) {
+        _primeMoreLoading = true;
+      } else {
+        _primeInitialLoading = true;
+        _primeError = null;
+      }
+    });
+
+    try {
+      final response = await _apiService.getTubePrimePosts(page: targetPage, limit: _tubePageSize);
+      if (response.data['success']) {
+        final posts = _extractPosts(response.data['data']);
+        if (!mounted) return;
+        setState(() {
+          if (loadMore) {
+            _tubePrimePosts.addAll(posts);
+          } else {
+            _tubePrimePosts = posts;
+          }
+          _primeCurrentPage = targetPage;
+          _primeHasMore = posts.length >= _tubePageSize;
+        });
+      } else if (!loadMore && mounted) {
+        setState(() {
+          _primeError = response.data['message']?.toString() ?? 'Failed to load videos.';
+          _primeHasMore = false;
         });
       }
     } catch (e) {
       print('Error loading tube prime posts: $e');
+      if (!mounted) return;
+      setState(() {
+        if (!loadMore) {
+          _primeError = 'Failed to load videos.';
+        }
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        if (loadMore) {
+          _primeMoreLoading = false;
+        } else {
+          _primeInitialLoading = false;
+        }
+      });
     }
+  }
+
+  Future<void> _refreshFeeds() async {
+    setState(() {
+      _shortCurrentPage = 1;
+      _maxCurrentPage = 1;
+      _primeCurrentPage = 1;
+      _blogCurrentPage = 1;
+    });
+    await Future.wait([
+      _loadTubeShortPosts(),
+      _loadTubeMaxPosts(),
+      _loadTubePrimePosts(),
+      _loadBlogPosts(),
+    ]);
   }
 
   // Hashtag suggestions methods
@@ -441,313 +871,573 @@ class _ChannelScreenState extends State<ChannelScreen> {
     });
   }
 
-  Widget _verticalDivider() {
-    return Container(
-      width: 1.2,
-      height: 18,
-      color: Colors.brown[200],
-      margin: const EdgeInsets.symmetric(horizontal: 6),
+  Widget _buildTubeShortSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_shortInitialLoading && _tubeShortPosts.isEmpty)
+          const _RowSkeleton()
+        else if (_tubeShortPosts.isEmpty)
+          _buildEmptyState('No Tube Short videos yet.')
+        else ...[
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.6,
+            ),
+            itemCount: _tubeShortPosts.length,
+            itemBuilder: (context, index) => _mediaCardWithSave(_tubeShortPosts[index]),
+          ),
+          if (_shortMoreLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                  ),
+                ),
+              ),
+            ),
+        ],
+        if (_shortError != null && _tubeShortPosts.isEmpty)
+          _buildErrorBanner(_shortError!, () => _loadTubeShortPosts()),
+      ],
     );
+  }
+
+  Widget _buildTubeMaxSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTubeHeading('M A X'),
+        if (_maxInitialLoading && _tubeMaxPosts.isEmpty)
+          const _GridSkeleton(crossAxisCount: 2, childAspectRatio: 1.1, spacing: 8)
+        else if (_tubeMaxPosts.isEmpty)
+          _buildEmptyState('No Tube Max videos yet.')
+        else ...[
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.1,
+            ),
+            itemCount: _tubeMaxPosts.length,
+            itemBuilder: (context, index) {
+              final video = _tubeMaxPosts[index];
+              return GestureDetector(
+                onTap: () => _openTubePlayer(_tubeMaxPosts, index),
+                child: _VideoPreviewCard(
+                  url: _getPrimaryMediaUrl(video),
+                  thumbnailUrl: _getThumbnail(video),
+                ),
+              );
+            },
+          ),
+          if (_maxMoreLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                  ),
+                ),
+              ),
+            ),
+        ],
+        if (_maxError != null && _tubeMaxPosts.isEmpty)
+          _buildErrorBanner(_maxError!, () => _loadTubeMaxPosts()),
+      ],
+    );
+  }
+
+  Widget _buildTubePrimeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTubeHeading('P R I M E'),
+        if (_primeInitialLoading && _tubePrimePosts.isEmpty)
+          const _GridSkeleton(crossAxisCount: 2, childAspectRatio: 0.8, spacing: 16)
+        else if (_tubePrimePosts.isEmpty)
+          _buildEmptyState('No Tube Prime videos yet.')
+        else ...[
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 0.8,
+            ),
+            itemCount: _tubePrimePosts.length,
+            itemBuilder: (context, index) {
+              final video = _tubePrimePosts[index];
+              return GestureDetector(
+                onTap: () => _openTubePlayer(_tubePrimePosts, index),
+                child: _VideoPreviewCard(
+                  url: _getPrimaryMediaUrl(video),
+                  thumbnailUrl: _getThumbnail(video),
+                ),
+              );
+            },
+          ),
+          if (_primeMoreLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                  ),
+                ),
+              ),
+            ),
+        ],
+        if (_primeError != null && _tubePrimePosts.isEmpty)
+          _buildErrorBanner(_primeError!, () => _loadTubePrimePosts()),
+      ],
+    );
+  }
+
+  Widget _buildBlogSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_blogInitialLoading && _blogPosts.isEmpty)
+          const _GridSkeleton(crossAxisCount: 1, childAspectRatio: 1.5, spacing: 16)
+        else if (_blogPosts.isEmpty)
+          _buildEmptyState('No blog posts yet.')
+        else ...[
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _blogPosts.length,
+            itemBuilder: (context, index) {
+              final blog = _blogPosts[index];
+              return _buildBlogCard(blog);
+            },
+          ),
+          if (_blogMoreLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                  ),
+                ),
+              ),
+            ),
+        ],
+        if (_blogError != null && _blogPosts.isEmpty)
+          _buildErrorBanner(_blogError!, () => _loadBlogPosts()),
+      ],
+    );
+  }
+
+  Widget _buildBlogCard(Map<String, dynamic> blog) {
+    final title = blog['title']?.toString() ?? 'Untitled';
+    final description = blog['description']?.toString() ?? 
+                        blog['excerpt']?.toString() ?? 
+                        blog['content']?.toString() ?? '';
+    final user = blog['user'] is Map<String, dynamic> ? blog['user'] as Map<String, dynamic> : null;
+    final userName = user?['name']?.toString() ?? user?['username']?.toString() ?? 'Unknown';
+    final userAvatar = user?['profile_avatar']?.toString() ?? 
+                       user?['profile_photo_url']?.toString() ?? 
+                       user?['user_avatar']?.toString();
+    final createdAt = blog['created_at']?.toString();
+    // Blogs use cover_image_url, not media_files
+    final thumbnailUrl = blog['cover_image_url']?.toString() ?? 
+                        blog['thumbnail_url']?.toString() ??
+                        blog['image_url']?.toString();
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            final uuid = blog['uuid']?.toString() ?? blog['id']?.toString();
+            if (uuid != null) {
+              context.push('/blog/$uuid');
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (thumbnailUrl != null)
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: Image.network(
+                    thumbnailUrl,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 200,
+                      color: Colors.grey[800],
+                      child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 48),
+                    ),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 200,
+                        color: Colors.grey[800],
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _stripHtmlTags(description),
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontSize: 14,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.amber,
+                          backgroundImage: userAvatar != null 
+                              ? NetworkImage(userAvatar) 
+                              : null,
+                          child: userAvatar == null
+                              ? Text(
+                                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                userName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (createdAt != null)
+                                Text(
+                                  _formatBlogDate(createdAt),
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _stripHtmlTags(String htmlString) {
+    // Remove HTML tags and decode entities
+    String result = htmlString.replaceAll(RegExp(r'<[^>]*>'), '');
+    
+    // Decode common HTML entities
+    result = result
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&#39;', "'")
+        .replaceAll('&#8217;', "'")
+        .replaceAll('&rsquo;', "'")
+        .replaceAll('&lsquo;', "'")
+        .replaceAll('&rdquo;', '"')
+        .replaceAll('&ldquo;', '"')
+        .replaceAll('&mdash;', '—')
+        .replaceAll('&ndash;', '–')
+        .replaceAll('&hellip;', '...')
+        .replaceAll('&copy;', '©')
+        .replaceAll('&reg;', '®')
+        .replaceAll('&trade;', '™')
+        .replaceAll('&euro;', '€')
+        .replaceAll('&pound;', '£')
+        .replaceAll('&yen;', '¥')
+        .replaceAll('&cent;', '¢');
+    
+    // Decode numeric HTML entities like &#8217;
+    result = result.replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
+      final code = int.tryParse(match.group(1) ?? '');
+      if (code != null) {
+        return String.fromCharCode(code);
+      }
+      return match.group(0) ?? '';
+    });
+    
+    return result.trim();
+  }
+
+  String _formatBlogDate(String? dateString) {
+    if (dateString == null) return '';
+    try {
+      final date = DateTime.parse(dateString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+      
+      if (difference.inDays == 0) {
+        if (difference.inHours == 0) {
+          return '${difference.inMinutes}m ago';
+        }
+        return '${difference.inHours}h ago';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays}d ago';
+      } else {
+        return '${date.day}/${date.month}/${date.year}';
+      }
+    } catch (e) {
+      return '';
+    }
+  }
+
+  Widget _buildTubeHeading(String accent) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            const TextSpan(
+              text: 'T u b e ',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 18, letterSpacing: 2),
+            ),
+            TextSpan(
+              text: accent,
+              style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: Text(
+          message,
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner(String message, VoidCallback onRetry) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderSection({
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openTubePlayer(List<Map<String, dynamic>> videos, int initialIndex) {
+    context.push('/tube-player', extra: {
+      'videos': videos,
+      'initialIndex': initialIndex,
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF232323),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              children: [
-                const Text('Tajify', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white)),
-                const Spacer(),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  icon: const Icon(Icons.search, color: Colors.white, size: 20),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  icon: const Icon(Icons.notifications_none, color: Colors.white, size: 20),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  icon: const Icon(Icons.message_outlined, color: Colors.white, size: 20),
-                  onPressed: () {},
-                ),
-                Container(
-                  height: 24,
-                  width: 1.2,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  color: Colors.grey[600],
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  icon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 20),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints(),
-                  icon: const Icon(Icons.person_outline, color: Colors.white, size: 20),
-                  onPressed: () {},
-                ),
-              ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            TajifyTopBar(
+              onSearch: () => context.push('/search'),
+              onNotifications: () {
+                context.push('/notifications').then((_) => _loadNotificationUnreadCount());
+              },
+              onMessages: () {
+                context.push('/messages').then((_) => _initializeFirebaseAndLoadMessagesCount());
+              },
+              onAdd: () => context.go('/create'),
+              onAvatarTap: () => context.go('/profile'),
+              notificationCount: _notificationUnreadCount,
+              messageCount: _messagesUnreadCount,
+              avatarUrl: _currentUserAvatar,
+              displayLetter: _currentUserInitial,
             ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
+            Expanded(
+              child: RefreshIndicator(
+        onRefresh: _refreshFeeds,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top brown tabs
+              // Primary tabs (Short, Max, Prime, Blog, Audio)
               Row(
                 children: [
-                  Expanded(child: _topTab('Tube', true)),
-                  Expanded(child: _topTab('Audio', false)),
-                  Expanded(child: _topTab('Image', false)),
-                  Expanded(child: _topTab('Article', false)),
-                  Expanded(child: _topTab('Live', false)),
+                  _primaryTab('Short', ChannelCategory.short),
+                  _primaryTab('Max', ChannelCategory.max),
+                  _primaryTab('Prime', ChannelCategory.prime),
+                  _primaryTab('Blog', ChannelCategory.blog),
+                  _primaryTab('Audio', ChannelCategory.audio),
                 ],
               ),
-              const SizedBox(height: 4),
-              // Orange sub-tabs
-              Container(
-                width: double.infinity,
-                color: const Color(0xFFFFD6B0),
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedTubeTab = TubeTab.short;
-                        });
-                      },
-                      child: _subTab('Tube SHORT', _selectedTubeTab == TubeTab.short),
-                    ),
-                    _verticalDivider(),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedTubeTab = TubeTab.max;
-                        });
-                      },
-                      child: _subTab('Tube MAX', _selectedTubeTab == TubeTab.max),
-                    ),
-                    _verticalDivider(),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedTubeTab = TubeTab.prime;
-                        });
-                      },
-                      child: _subTab('Tube PRIME', _selectedTubeTab == TubeTab.prime),
-                    ),
-                    _verticalDivider(),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const SavedPostsScreen(),
-                          ),
-                        );
-                      },
-                      child: Icon(Icons.bookmark_border, color: Colors.brown, size: 20),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        _showUploadOptions(context);
-                      },
-                      child: Icon(Icons.add, color: Colors.brown, size: 20),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 16),
+              // Category sections
+              Builder(
+                builder: (_) {
+                  switch (_selectedCategory) {
+                    case ChannelCategory.short:
+                      return _buildTubeShortSection();
+                    case ChannelCategory.max:
+                      return _buildTubeMaxSection();
+                    case ChannelCategory.prime:
+                      return _buildTubePrimeSection();
+                    case ChannelCategory.blog:
+                      return _buildBlogSection();
+                    case ChannelCategory.audio:
+                      return _buildPlaceholderSection(
+                        title: 'Audio',
+                        message: 'Audio experiences are coming soon.',
+                      );
+                  }
+                },
               ),
-              // Tube SHORT and Tube MAX sections
-              if (_selectedTubeTab == TubeTab.short)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tube SHORT label
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                      child: RichText(
-                        text: const TextSpan(
-                          children: [
-                            TextSpan(text: 'T u b e ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 18, letterSpacing: 2)),
-                            TextSpan(text: 'S H O R T', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    _isLoading
-                        ? const _RowSkeleton()
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: _tubeShortPosts.take(3).map((v) => _mediaCardWithSave(v)).toList(),
-                          ),
-                  ],
-                )
-              else if (_selectedTubeTab == TubeTab.max)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tube MAX label
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                      child: RichText(
-                        text: const TextSpan(
-                          children: [
-                            TextSpan(text: 'T u b e ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 18, letterSpacing: 2)),
-                            TextSpan(text: 'M A X', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Tube MAX grid of 2x2 videos
-                    _isLoading
-                        ? const _GridSkeleton(crossAxisCount: 2, childAspectRatio: 1.1, spacing: 8)
-                        : GridView.count(
-                            crossAxisCount: 2,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 1.1,
-                            children: List.generate(
-                              _tubeMaxPosts.take(4).length,
-                              (i) => GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) => TubePlayerScreen(
-                                        videos: _tubeMaxPosts,
-                                        initialIndex: i,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: _VideoPreviewCard(url: _tubeMaxPosts[i]['media_files']?[0]?['file_path']?.toString() ?? ''),
-                              ),
-                            ),
-                          ),
-                  ],
-                )
-              else if (_selectedTubeTab == TubeTab.prime)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tube PRIME label
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                      child: RichText(
-                        text: const TextSpan(
-                          children: [
-                            TextSpan(text: 'T u b e ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 18, letterSpacing: 2)),
-                            TextSpan(text: 'P R I M E', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _isLoading
-                        ? const _GridSkeleton(crossAxisCount: 2, childAspectRatio: 0.8, spacing: 16)
-                        : GridView.count(
-                            crossAxisCount: 2,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            childAspectRatio: 0.8,
-                            children: List.generate(
-                              _tubePrimePosts.length,
-                              (i) => _TubePrimeCardWithSave(
-                                video: _tubePrimePosts[i],
-                                isSaved: _savedVideos.contains(_tubePrimePosts[i]['media_files']?[0]?['file_path']?.toString() ?? ''),
-                                onToggleSave: () => _toggleSave(_tubePrimePosts[i]['media_files']?[0]?['file_path']?.toString() ?? ''),
-                              ),
-                            ),
-                          ),
-                  ],
-                )
-              else if (_selectedTubeTab == TubeTab.none)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tube SHORT label
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                      child: RichText(
-                        text: const TextSpan(
-                          children: [
-                            TextSpan(text: 'T u b e ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 18, letterSpacing: 2)),
-                            TextSpan(text: 'S H O R T', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    _isLoading
-                        ? const _RowSkeleton()
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: _tubeShortPosts.take(3).map((v) => _mediaCardWithSave(v)).toList(),
-                          ),
-                    const SizedBox(height: 18),
-                    // Tube MAX label
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                      child: RichText(
-                        text: const TextSpan(
-                          children: [
-                            TextSpan(text: 'T u b e ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 18, letterSpacing: 2)),
-                            TextSpan(text: 'M A X', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 2)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Tube MAX grid of 2x2 videos
-                    _isLoading
-                        ? const _GridSkeleton(crossAxisCount: 2, childAspectRatio: 1.1, spacing: 8)
-                        : GridView.count(
-                            crossAxisCount: 2,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 1.1,
-                            children: List.generate(
-                              _tubeMaxPosts.take(4).length,
-                              (i) => GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) => TubePlayerScreen(
-                                        videos: _tubeMaxPosts,
-                                        initialIndex: i,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: _VideoPreviewCard(url: _tubeMaxPosts[i]['media_files']?[0]?['file_path']?.toString() ?? ''),
-                              ),
-                            ),
-                          ),
                   ],
                 ),
-            ],
           ),
+        ),
+              ),
+            ),
+          ],
         ),
       ),
       floatingActionButton: Padding(
@@ -802,54 +1492,54 @@ class _ChannelScreenState extends State<ChannelScreen> {
     );
   }
 
-  Widget _topTab(String label, bool selected) {
-    return Container(
-      margin: const EdgeInsets.only(right: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xFFB97A56) : const Color(0xFFD2A06B),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.black,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
+  Widget _primaryTab(String label, ChannelCategory category) {
+    final selected = _selectedCategory == category;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _selectedCategory = category);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? Colors.amber : Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? Colors.amberAccent : Colors.white24,
+              width: 1.2,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.black : Colors.white70,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _subTab(String label, bool selected) {
-    return Text(
-      label,
-      style: TextStyle(
-        color: selected ? Colors.blueAccent : Colors.brown[700],
-        fontWeight: FontWeight.bold,
-        fontSize: 14,
       ),
     );
   }
 
   Widget _mediaCard(Map<String, dynamic> video) {
     final index = _tubeShortPosts.indexOf(video);
-    final videoUrl = video['media_files']?[0]?['file_path']?.toString() ?? '';
+    final videoUrl = _getPrimaryMediaUrl(video);
+    final thumbnailUrl = _getThumbnail(video);
     return GestureDetector(
       onTap: () {
         print('DEBUG: Opening TubePlayerScreen at index: ' + index.toString());
-        Navigator.of(context).push(
-          MaterialPageRoute(
-                              builder: (context) => TubePlayerScreen(
-                    videos: _tubeShortPosts,
-                    initialIndex: index,
-                  ),
-          ),
-        );
+        context.push('/tube-player', extra: {
+          'videos': _tubeShortPosts,
+          'initialIndex': index,
+        });
       },
-      child: _VideoPreviewCard(url: videoUrl),
+      child: _VideoPreviewCard(
+        url: videoUrl,
+        thumbnailUrl: thumbnailUrl,
+      ),
     );
   }
 
@@ -1733,9 +2423,18 @@ class _ChannelScreenState extends State<ChannelScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        final savedShorts = _tubeShortPosts.where((v) => _savedVideos.contains(v['media_files']?[0]?['file_path']?.toString() ?? '')).toList();
-        final savedMax = _tubeMaxPosts.where((v) => _savedVideos.contains(v['media_files']?[0]?['file_path']?.toString() ?? '')).toList();
-        final savedPrime = _tubePrimePosts.where((v) => _savedVideos.contains(v['media_files']?[0]?['file_path']?.toString() ?? '')).toList();
+        final savedShorts = _tubeShortPosts.where((v) {
+          final url = _getPrimaryMediaUrl(v);
+          return url.isNotEmpty && _savedVideos.contains(url);
+        }).toList();
+        final savedMax = _tubeMaxPosts.where((v) {
+          final url = _getPrimaryMediaUrl(v);
+          return url.isNotEmpty && _savedVideos.contains(url);
+        }).toList();
+        final savedPrime = _tubePrimePosts.where((v) {
+          final url = _getPrimaryMediaUrl(v);
+          return url.isNotEmpty && _savedVideos.contains(url);
+        }).toList();
         return Padding(
           padding: MediaQuery.of(context).viewInsets,
           child: DraggableScrollableSheet(
@@ -1784,7 +2483,18 @@ class _ChannelScreenState extends State<ChannelScreen> {
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: savedPrime.map((v) => _TubePrimeCardWithSave(video: v, isSaved: true, onToggleSave: () => _toggleSave(v['media_files']?[0]?['file_path']?.toString() ?? ''))).toList(),
+                        children: savedPrime
+                            .map((v) => _TubePrimeCardWithSave(
+                                  video: v,
+                                  isSaved: true,
+                                  onToggleSave: () {
+                                    final url = _getPrimaryMediaUrl(v);
+                                    if (url.isNotEmpty) {
+                                      _toggleSave(url);
+                                    }
+                                  },
+                                ))
+                            .toList(),
                       ),
                     ),
                   ],
@@ -1818,174 +2528,16 @@ class _ChannelScreenState extends State<ChannelScreen> {
     });
   }
 
-  void _showUploadOptions(BuildContext parentContext) {
-    _showRecordOrUploadModal(parentContext);
+  Future<void> _showUploadOptions(BuildContext parentContext) async {
+    final choice = await showCreateVideoOptionSheet(parentContext);
+    if (choice == null) return;
+    if (choice == CreateVideoOption.record) {
+      _showCameraRecordingScreen(parentContext);
+    } else if (choice == CreateVideoOption.upload) {
+      _showContentTypeSelectionModal(parentContext);
+    }
   }
 
-  void _showRecordOrUploadModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Padding(
-            padding: MediaQuery.of(context).viewInsets,
-            child: DraggableScrollableSheet(
-              expand: false,
-              initialChildSize: 0.5,
-              minChildSize: 0.3,
-              maxChildSize: 0.7,
-              builder: (context, scrollController) {
-                return SingleChildScrollView(
-                  controller: scrollController,
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header
-                        Row(
-                          children: [
-                            const Text(
-                              'Create Video',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(Icons.close, color: Colors.white),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Option Selection
-                        const Text(
-                          'How would you like to create your video?',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        
-                        // Record with Camera Option
-                        _buildRecordOrUploadOption(
-                          context,
-                          'Record with Camera',
-                          'Record a new video with filters',
-                          Icons.videocam,
-                          Colors.red,
-                          true, // isRecord
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Upload from Gallery Option
-                        _buildRecordOrUploadOption(
-                          context,
-                          'Upload from Gallery',
-                          'Choose an existing video to upload',
-                          Icons.photo_library,
-                          Colors.blue,
-                          false, // isRecord
-                        ),
-                        
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRecordOrUploadOption(
-    BuildContext context,
-    String title,
-    String description,
-    IconData icon,
-    Color color,
-    bool isRecord,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pop(context); // Close current modal
-        if (isRecord) {
-          _showCameraRecordingScreen(context);
-        } else {
-          _showContentTypeSelectionModal(context);
-        }
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.grey[600]!,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey[500],
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showCameraRecordingScreen(BuildContext context) async {
     // Navigate to camera recording screen
@@ -2676,114 +3228,87 @@ class _ChannelScreenState extends State<ChannelScreen> {
   }
 }
 
-class _VideoPreviewCard extends StatefulWidget {
+class _VideoPreviewCard extends StatelessWidget {
   final String url;
-  const _VideoPreviewCard({required this.url});
-
-  @override
-  State<_VideoPreviewCard> createState() => _VideoPreviewCardState();
-}
-
-class _VideoPreviewCardState extends State<_VideoPreviewCard> {
-  VideoPlayerController? _controller;
-  bool _initialized = false;
-  bool _hasError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideo();
-  }
-
-  Future<void> _initializeVideo() async {
-    try {
-      _controller = VideoPlayerController.network(widget.url)
-        ..setLooping(true)
-        ..setVolume(0);
-      
-      await _controller!.initialize();
-      
-      if (mounted) {
-        setState(() => _initialized = true);
-        if (_controller!.value.isInitialized) {
-          _controller!.play(); // Always auto-play preview, muted
-        }
-      }
-    } catch (e) {
-      print('Video initialization error for ${widget.url}: $e');
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _initialized = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
+  final String? thumbnailUrl;
+  const _VideoPreviewCard({required this.url, this.thumbnailUrl});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 100,
-      height: 160,
-      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    final hasThumbnail = thumbnailUrl != null && thumbnailUrl!.isNotEmpty;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1B1B1B), Color(0xFF0E0E0E)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: _hasError
-                ? Container(
-                    color: Colors.grey[900],
-                    child: const Center(
-                      child: Icon(
-                        Icons.error_outline,
-                        color: Colors.white54,
-                        size: 30,
-                      ),
-                    ),
-                  )
-                : _initialized && _controller != null
-                    ? Center(
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox.expand(
-                              child: FittedBox(
-                                fit: BoxFit.cover,
-                                child: SizedBox(
-                                  width: _controller!.value.size.width,
-                                  height: _controller!.value.size.height,
-                                  child: VideoPlayer(_controller!),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: hasThumbnail
+                    ? Image.network(
+                        thumbnailUrl!,
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _fallbackPreview(),
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const _VideoPlayerSkeleton();
+                        },
                       )
-                    : const _VideoPlayerSkeleton(),
+                    : _fallbackPreview(),
+              ),
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  // No duration method needed
+  Widget _fallbackPreview() {
+    return Container(
+      color: Colors.grey[900],
+      child: const Center(
+        child: Icon(
+          Icons.videocam,
+          color: Colors.white38,
+          size: 28,
+        ),
+      ),
+    );
+  }
 }
 
 class _TubePrimeCard extends StatefulWidget {

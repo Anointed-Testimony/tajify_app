@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.29.141:8000/api';
+  static const String baseUrl = 'https://apitajv1.digitalentshub.net/api';
   static const String storageKey = 'auth_token';
   
   late Dio _dio;
@@ -223,6 +223,34 @@ class ApiService {
     return await postFormData('/upload/media', formData);
   }
 
+  Future<Response> createBlog({
+    required String title,
+    required String content,
+    String? excerpt,
+    List<String>? tags,
+    bool isPublished = true,
+    File? coverImage,
+  }) async {
+    final formData = FormData();
+    formData.fields.add(MapEntry('title', title));
+    formData.fields.add(MapEntry('content', content));
+    if (excerpt != null && excerpt.isNotEmpty) {
+      formData.fields.add(MapEntry('excerpt', excerpt));
+    }
+    if (tags != null && tags.isNotEmpty) {
+      for (final tag in tags) {
+        formData.fields.add(MapEntry('tags[]', tag));
+      }
+    }
+    formData.fields.add(MapEntry('is_published', isPublished ? '1' : '0'));
+    if (coverImage != null) {
+      formData.files.add(
+        MapEntry('cover_image', await MultipartFile.fromFile(coverImage.path)),
+      );
+    }
+    return await postFormData('/blogs', formData);
+  }
+
   Future<Response> completeUpload(int postId, List<int> mediaFileIds, {int? thumbnailMediaId}) async {
     return await post('/upload/complete', data: {
       'post_id': postId,
@@ -271,24 +299,52 @@ class ApiService {
     return await get('/posts/types');
   }
 
-  Future<Response> getPosts({String? postType, int? page}) async {
+  Future<Response> getPosts({String? postType, int? page, int? limit, int? userId}) async {
     final queryParams = <String, dynamic>{};
     if (postType != null) queryParams['post_type'] = postType;
     if (page != null) queryParams['page'] = page;
+    if (limit != null) queryParams['limit'] = limit;
+    if (userId != null) queryParams['user_id'] = userId;
     
     return await get('/posts', queryParameters: queryParams);
   }
 
-  Future<Response> getTubeShortPosts({int? page}) async {
-    return await getPosts(postType: 'tube_short', page: page);
+  Future<Response> getTubeShortPosts({int? page, int? limit}) async {
+    return await getPosts(postType: 'tube_short', page: page, limit: limit);
   }
 
-  Future<Response> getTubeMaxPosts({int? page}) async {
-    return await getPosts(postType: 'tube_max', page: page);
+  Future<Response> getTubeMaxPosts({int? page, int? limit}) async {
+    return await getPosts(postType: 'tube_max', page: page, limit: limit);
   }
 
-  Future<Response> getTubePrimePosts({int? page}) async {
-    return await getPosts(postType: 'tube_prime', page: page);
+  Future<Response> getTubePrimePosts({int? page, int? limit}) async {
+    return await getPosts(postType: 'tube_prime', page: page, limit: limit);
+  }
+
+  Future<Response> getBlogPosts({int? page, int? limit}) async {
+    final queryParams = <String, dynamic>{};
+    if (page != null) queryParams['page'] = page;
+    if (limit != null) queryParams['limit'] = limit;
+    
+    return await get('/blogs', queryParameters: queryParams);
+  }
+
+  Future<Response> getBlog(String uuid) async {
+    return await get('/blogs/$uuid');
+  }
+
+  Future<Response> toggleBlogLike(String uuid) async {
+    return await post('/blogs/$uuid/like');
+  }
+
+  // Search methods
+  Future<Response> search(String query, {String? type}) async {
+    final queryParams = <String, dynamic>{
+      'q': query,
+    };
+    if (type != null) queryParams['type'] = type;
+    
+    return await get('/search', queryParameters: queryParams);
   }
 
   // Interaction methods (Like, Save, Comment)
@@ -302,6 +358,28 @@ class ApiService {
 
   Future<Response> share(int postId) async {
     return await post('/posts/$postId/share');
+  }
+
+  Future<Response> deletePost(int postId) async {
+    return await delete('/posts/$postId');
+  }
+
+  Future<Response> toggleFollowUser(int userId) async {
+    return await post('/follow/toggle', data: {
+      'user_id': userId,
+    });
+  }
+
+  Future<Response> getFollowers(String username) async {
+    return await get('/follow/$username/followers');
+  }
+
+  Future<Response> getFollowing(String username) async {
+    return await get('/follow/$username/following');
+  }
+
+  Future<Response> checkFollowStatus(String username) async {
+    return await get('/follow/$username/status');
   }
 
   Future<Response> getInteractionCounts(int postId) async {
@@ -341,6 +419,10 @@ class ApiService {
 
   Future<Response> deleteComment(int commentId) async {
     return await delete('/comments/$commentId');
+  }
+
+  Future<Response> toggleCommentLike(int commentId) async {
+    return await post('/comments/$commentId/like');
   }
 
   Future<Response> getCommentReplies(int commentId, {int? page}) async {
@@ -385,6 +467,64 @@ class ApiService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<Response> getWallet() async {
+    return await get('/wallet');
+  }
+
+  Future<Response> getGiftPacks() async {
+    return await get('/wallet/packs');
+  }
+
+  Future<Response> initializeWalletPayment({
+    required int packId,
+    required String currency,
+    required String email,
+  }) async {
+    final data = {
+      'pack_id': packId,
+      'currency': currency,
+      'email': email,
+    };
+    return await post('/wallet/initialize-payment', data: data);
+  }
+
+  Future<Response> verifyWalletPayment(String reference) async {
+    return await post('/wallet/verify-payment', data: {'reference': reference});
+  }
+
+  Future<Response> getGifts({
+    String? category,
+    String? rarity,
+    String? sort,
+    String? order,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (category != null && category.isNotEmpty) queryParams['category'] = category;
+    if (rarity != null && rarity.isNotEmpty) queryParams['rarity'] = rarity;
+    if (sort != null && sort.isNotEmpty) queryParams['sort'] = sort;
+    if (order != null && order.isNotEmpty) queryParams['order'] = order;
+    return await get('/gifts', queryParameters: queryParams.isEmpty ? null : queryParams);
+  }
+
+  Future<Response> sendGift({
+    required int giftId,
+    required int receiverId,
+    required int postId,
+    int quantity = 1,
+    String? message,
+    bool isAnonymous = false,
+  }) async {
+    final data = <String, dynamic>{
+      'gift_id': giftId,
+      'receiver_id': receiverId,
+      'post_id': postId,
+      'quantity': quantity,
+      'message': message,
+      'is_anonymous': isAnonymous,
+    }..removeWhere((key, value) => value == null);
+    return await post('/gifts/send', data: data);
   }
 
   // Hashtag methods
@@ -556,5 +696,204 @@ class ApiService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  // Notification methods
+  Future<Response> getNotifications({int? limit, String? type}) async {
+    final queryParams = <String, dynamic>{};
+    if (limit != null) queryParams['limit'] = limit;
+    if (type != null) queryParams['type'] = type;
+    
+    return await get('/notifications', queryParameters: queryParams);
+  }
+
+  Future<Response> getUnreadCount() async {
+    return await get('/notifications/unread-count');
+  }
+
+  Future<Response> markNotificationAsRead(int notificationId) async {
+    return await post('/notifications/mark-read', data: {
+      'notification_id': notificationId,
+    });
+  }
+
+  Future<Response> markAllNotificationsAsRead() async {
+    return await post('/notifications/mark-all-read');
+  }
+
+  Future<Response> deleteNotification(int notificationId) async {
+    // Backend uses DELETE method but expects notification_id in request body
+    try {
+      final token = await getToken();
+      final response = await _dio.delete(
+        '/notifications/delete',
+        data: {'notification_id': notificationId},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      return response;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  // Direct Messages methods
+  Future<Response> getConversations() async {
+    return await get('/direct-messages');
+  }
+
+  Future<Response> getMessages(int userId) async {
+    return await get('/direct-messages/$userId/messages');
+  }
+
+  Future<Response> sendMessage(int userId, {String? content, File? media}) async {
+    if (media != null) {
+      // Determine media type from file extension (like web does)
+      String? mediaType;
+      final fileName = media.path.toLowerCase();
+      if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || 
+          fileName.endsWith('.png') || fileName.endsWith('.gif')) {
+        mediaType = 'image';
+      } else if (fileName.endsWith('.mp4') || fileName.endsWith('.mov') || 
+                 fileName.endsWith('.avi')) {
+        mediaType = 'video';
+      } else if (fileName.endsWith('.mp3') || fileName.endsWith('.wav')) {
+        mediaType = 'audio';
+      } else {
+        mediaType = 'file';
+      }
+      
+      final formData = FormData.fromMap({
+        if (content != null && content.isNotEmpty) 'content': content,
+        'media': await MultipartFile.fromFile(media.path),
+        'media_type': mediaType,
+      });
+      return await postFormData('/direct-messages/$userId/send', formData);
+    } else {
+      return await post('/direct-messages/$userId/send', data: {
+        if (content != null && content.isNotEmpty) 'content': content,
+      });
+    }
+  }
+
+  Future<Response> searchUsersForMessages(String query) async {
+    return await get('/direct-messages/search-users', queryParameters: {
+      'q': query,
+    });
+  }
+
+  // Profile methods
+  Future<Response> getProfile() async {
+    return await get('/profile');
+  }
+
+  Future<Response> updateProfile({
+    String? name,
+    String? username,
+    String? email,
+    String? phone,
+    String? bio,
+    String? dateOfBirth,
+  }) async {
+    final data = <String, dynamic>{};
+    if (name != null) data['name'] = name;
+    if (username != null) data['username'] = username;
+    if (email != null) data['email'] = email;
+    if (phone != null) data['phone'] = phone;
+    if (bio != null) data['bio'] = bio;
+    if (dateOfBirth != null) data['date_of_birth'] = dateOfBirth;
+    
+    return await put('/profile', data: data);
+  }
+
+  Future<Response> uploadAvatar(File avatarFile) async {
+    final formData = FormData.fromMap({
+      'avatar': await MultipartFile.fromFile(avatarFile.path),
+    });
+    return await postFormData('/profile/avatar', formData);
+  }
+
+  Future<Response> getProfileStats() async {
+    return await get('/profile/stats');
+  }
+
+  Future<Response> getUserProfile(int userId) async {
+    return await get('/users/$userId');
+  }
+
+  // Community methods
+  Future<Response> getCommunity(String uuid) async {
+    return await get('/communities/$uuid');
+  }
+
+  Future<Response> getCommunityMembers(String uuid) async {
+    return await get('/communities/$uuid/members');
+  }
+
+  Future<Response> getCommunityMessages(String uuid) async {
+    return await get('/communities/$uuid/messages');
+  }
+
+  Future<Response> sendCommunityMessage(String uuid, {String? content, File? media}) async {
+    if (media != null) {
+      // Determine media type from file extension
+      String? mediaType;
+      final fileName = media.path.toLowerCase();
+      if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || 
+          fileName.endsWith('.png') || fileName.endsWith('.gif')) {
+        mediaType = 'image';
+      } else if (fileName.endsWith('.mp4') || fileName.endsWith('.mov') || 
+                 fileName.endsWith('.avi')) {
+        mediaType = 'video';
+      } else if (fileName.endsWith('.mp3') || fileName.endsWith('.wav')) {
+        mediaType = 'audio';
+      } else {
+        mediaType = 'file';
+      }
+      
+      final formData = FormData.fromMap({
+        if (content != null && content.isNotEmpty) 'content': content,
+        'media': await MultipartFile.fromFile(media.path),
+        'media_type': mediaType,
+      });
+      return await postFormData('/communities/$uuid/messages', formData);
+    } else {
+      return await post('/communities/$uuid/messages', data: {
+        if (content != null && content.isNotEmpty) 'content': content,
+      });
+    }
+  }
+
+  Future<Response> leaveCommunity(String uuid) async {
+    return await post('/communities/$uuid/leave');
+  }
+
+  Future<Response> updateCommunity(String uuid, {
+    String? name,
+    String? description,
+    String? joinPolicy,
+    String? chatPolicy,
+  }) async {
+    final data = <String, dynamic>{};
+    if (name != null) data['name'] = name;
+    if (description != null) data['description'] = description;
+    if (joinPolicy != null) data['join_policy'] = joinPolicy;
+    if (chatPolicy != null) data['chat_policy'] = chatPolicy;
+    
+    return await put('/communities/$uuid', data: data);
+  }
+
+  Future<Response> deleteCommunityMessage(String uuid, int messageId) async {
+    return await delete('/communities/$uuid/messages/$messageId');
+  }
+
+  Future<Response> updateCommunityMessage(String uuid, int messageId, String content) async {
+    return await put('/communities/$uuid/messages/$messageId', data: {
+      'content': content,
+    });
   }
 } 
