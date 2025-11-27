@@ -322,6 +322,8 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
             context.go('/connect');
           } else if (index == 1) {
             context.go('/channel');
+          } else if (index == 2) {
+            context.go('/market');
           } else if (index == 3) {
             context.go('/earn');
           }

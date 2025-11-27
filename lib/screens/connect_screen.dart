@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_service.dart';
+import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/tajify_top_bar.dart';
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key});
@@ -14,6 +18,15 @@ class _ConnectScreenState extends State<ConnectScreen> {
   final ApiService _apiService = ApiService();
   final StorageService _storageService = StorageService();
   final TextEditingController _searchController = TextEditingController();
+  
+  // Top bar state
+  int _notificationUnreadCount = 0;
+  Timer? _notificationTimer;
+  int _messagesUnreadCount = 0;
+  StreamSubscription<int>? _messagesCountSubscription;
+  String? _currentUserAvatar;
+  String _currentUserInitial = 'U';
+  Map<String, dynamic>? _currentUserProfile;
   
   // Communities
   List<Map<String, dynamic>> _communities = [];
@@ -41,6 +54,10 @@ class _ConnectScreenState extends State<ConnectScreen> {
   void initState() {
     super.initState();
     _loadCurrentUserId();
+    _loadUserProfile();
+    _loadNotificationUnreadCount();
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (_) => _loadNotificationUnreadCount());
+    _initializeFirebaseAndLoadMessagesCount();
   }
 
   Future<void> _loadCurrentUserId() async {
@@ -444,68 +461,91 @@ class _ConnectScreenState extends State<ConnectScreen> {
            community['avatar']?.toString();
   }
 
+  Future<void> _loadUserProfile() async {
+    try {
+      final response = await _apiService.get('/auth/me');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final profile = response.data['data'];
+        if (mounted) {
+          setState(() {
+            _currentUserProfile = profile;
+            final name = profile?['name']?.toString();
+            if (name != null && name.isNotEmpty) {
+              _currentUserInitial = name[0].toUpperCase();
+            }
+            _currentUserAvatar = profile?['profile_avatar']?.toString();
+          });
+        }
+        return;
+      }
+    } catch (_) {
+      // ignored
+    }
+
+    try {
+      final name = await _storageService.getUserName();
+      final avatar = await _storageService.getUserProfilePicture();
+      if (mounted) {
+        setState(() {
+          if (name != null && name.isNotEmpty) {
+            _currentUserInitial = name[0].toUpperCase();
+          }
+          _currentUserAvatar = avatar;
+        });
+      }
+    } catch (_) {
+      // ignored
+    }
+  }
+
+  Future<void> _initializeFirebaseAndLoadMessagesCount() async {
+    try {
+      await FirebaseService.initialize();
+      await FirebaseService.initializeAuth();
+
+      final response = await _apiService.get('/auth/me');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final userId = response.data['data']['id'] as int?;
+        if (userId != null && FirebaseService.isInitialized) {
+          _messagesCountSubscription?.cancel();
+          _messagesCountSubscription = FirebaseService.getUnreadCountStream(userId).listen((count) {
+            if (mounted) {
+              setState(() {
+                _messagesUnreadCount = count;
+              });
+            }
+          });
+        }
+      }
+    } catch (_) {
+      // ignored
+    }
+  }
+
+  Future<void> _loadNotificationUnreadCount() async {
+    try {
+      final response = await _apiService.get('/notifications/unread-count');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _notificationUnreadCount = response.data['data']['count'] ?? 0;
+          });
+        }
+      }
+    } catch (_) {
+      // ignored
+    }
+  }
+
   @override
   void dispose() {
+    _notificationTimer?.cancel();
+    _messagesCountSubscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                const Color(0xFF1A1A1A),
-                const Color(0xFF0F0F0F),
-                ],
-              ),
-            ),
-        ),
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-          ),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              context.pop();
-            } else {
-              context.go('/home');
-            }
-          },
-        ),
-        title: const Text(
-          'Connect',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-            letterSpacing: 0.5,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.search, color: Colors.white, size: 20),
-            ),
-            onPressed: () {
+  void _openSearchDialog() {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -584,12 +624,64 @@ class _ConnectScreenState extends State<ConnectScreen> {
                           ],
                         ),
               );
-            },
-          ),
+  }
+
+  Widget _buildBottomNav() {
+    return BottomNavigationBar(
+      backgroundColor: const Color(0xFF0F0F0F),
+      selectedItemColor: Colors.amber,
+      unselectedItemColor: Colors.white,
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 0,
+      onTap: (index) {
+        if (index == 1) {
+          context.go('/channel');
+        } else if (index == 2) {
+          context.go('/market');
+        } else if (index == 3) {
+          context.go('/earn');
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'Connect'),
+        BottomNavigationBarItem(icon: Icon(Icons.live_tv_outlined), label: 'Channel'),
+        BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), label: 'Market'),
+        BottomNavigationBarItem(icon: Icon(Icons.auto_graph_outlined), label: 'Earn'),
         ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F0F0F),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 32),
+        child: FloatingActionButton(
+          backgroundColor: Colors.amber,
+          foregroundColor: Colors.black,
+          onPressed: () => context.go('/home'),
+          child: const Icon(Icons.home, size: 30),
+        ),
       ),
-      body: Column(
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: _buildBottomNav(),
+      body: SafeArea(
+        child: Column(
         children: [
+            TajifyTopBar(
+              onSearch: _openSearchDialog,
+              onNotifications: () => context.push('/notifications').then((_) => _loadNotificationUnreadCount()),
+              onMessages: () => context.push('/messages').then((_) => _initializeFirebaseAndLoadMessagesCount()),
+              onAdd: () => context.go('/create'),
+              onAvatarTap: () => context.go('/profile'),
+              notificationCount: _notificationUnreadCount,
+              messageCount: _messagesUnreadCount,
+              avatarUrl: _currentUserAvatar,
+              displayLetter: _currentUserProfile?['name'] != null && _currentUserProfile!['name'].toString().isNotEmpty
+                  ? _currentUserProfile!['name'].toString()[0].toUpperCase()
+                  : _currentUserInitial,
+            ),
           // Tabs - Always visible
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -673,6 +765,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

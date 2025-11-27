@@ -473,6 +473,144 @@ class ApiService {
     return await get('/wallet');
   }
 
+  Future<Response> getWalletStats() async {
+    return await get('/wallet/stats');
+  }
+
+  Future<Response> getEarningCenter() async {
+    return await get('/wallet/earning-center');
+  }
+
+  Future<Response> getRecentEarnings({int limit = 10}) async {
+    return await get(
+      '/wallet/recent-earnings',
+      queryParameters: {'limit': limit},
+    );
+  }
+
+  Future<Response> getTajstarsBalance() async {
+    return await get('/wallet/tajstars-balance');
+  }
+
+  Future<Response> initializeWalletFunding({
+    required String currency,
+    required double amount,
+    required String paymentMethod,
+  }) async {
+    return await post(
+      '/wallet/funding/initialize',
+      data: {
+        'currency': currency,
+        'amount': amount,
+        'payment_method': paymentMethod,
+      },
+    );
+  }
+
+  Future<Response> getWalletBanks() async {
+    return await get('/wallet/banks');
+  }
+
+  Future<Response> validateBankAccount({
+    required String accountNumber,
+    required String bankCode,
+  }) async {
+    return await post(
+      '/wallet/validate-account',
+      data: {
+        'account_number': accountNumber,
+        'bank_code': bankCode,
+      },
+    );
+  }
+
+  Future<Response> createWithdrawal({
+    required double amount,
+    required String currencyType,
+    required String bankCode,
+    required String bankName,
+    required String accountNumber,
+    required String accountName,
+  }) async {
+    return await post(
+      '/wallet/create-withdrawal',
+      data: {
+        'amount': amount,
+        'currency_type': currencyType,
+        'bank_code': bankCode,
+        'bank_name': bankName,
+        'account_number': accountNumber,
+        'account_name': accountName,
+      },
+    );
+  }
+
+  Future<Response> getTajiPrice() async {
+    return await get('/taji/price');
+  }
+
+  Future<Response> getMarketItems({
+    String? category,
+    String? search,
+    bool? isPaid,
+    int? page,
+    int? perPage,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (category != null && category.isNotEmpty) queryParams['category'] = category;
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (isPaid != null) queryParams['is_paid'] = isPaid ? 'true' : 'false';
+    if (page != null) queryParams['page'] = page;
+    if (perPage != null) queryParams['per_page'] = perPage;
+    return await get('/market', queryParameters: queryParams.isEmpty ? null : queryParams);
+  }
+
+  Future<Response> getMarketItem(String uuid) async {
+    return await get('/market/$uuid');
+  }
+
+  Future<Response> createMarketItem(Map<String, dynamic> data) async {
+    return await post('/market', data: data);
+  }
+
+  Future<Response> updateMarketItem(String uuid, Map<String, dynamic> data) async {
+    return await put('/market/$uuid', data: data);
+  }
+
+  Future<Response> deleteMarketItem(String uuid) async {
+    return await delete('/market/$uuid');
+  }
+
+  Future<Response> toggleMarketItemLike(String uuid) async {
+    return await post('/market/$uuid/like');
+  }
+
+  Future<Response> getUserMarketItems({
+    String? category,
+    bool? isActive,
+    int? page,
+    int? perPage,
+  }) async {
+    final queryParams = <String, dynamic>{};
+    if (category != null && category.isNotEmpty) queryParams['category'] = category;
+    if (isActive != null) queryParams['is_active'] = isActive ? 'true' : 'false';
+    if (page != null) queryParams['page'] = page;
+    if (perPage != null) queryParams['per_page'] = perPage;
+    return await get('/market/my-items', queryParameters: queryParams.isEmpty ? null : queryParams);
+  }
+
+  Future<Response> convertTajstarsToNaira(Map<String, dynamic> data) async {
+    return await post('/wallet/convert-tajstars-to-naira', data: data);
+  }
+
+  Future<Response> convertTajstarsToUsdt(Map<String, dynamic> data) async {
+    return await post('/wallet/convert-tajstars-to-usdt', data: data);
+  }
+
+  Future<Response> convertUsdtToTajstars(Map<String, dynamic> data) async {
+    return await post('/wallet/convert-usdt-to-tajstars', data: data);
+  }
+
   Future<Response> getGiftPacks() async {
     return await get('/wallet/packs');
   }
@@ -492,6 +630,279 @@ class ApiService {
 
   Future<Response> verifyWalletPayment(String reference) async {
     return await post('/wallet/verify-payment', data: {'reference': reference});
+  }
+
+  Future<Response> generateCryptoDepositAddress({
+    required double tajiAmount,
+    required String cryptoType,
+    required String network,
+  }) async {
+    return await post('/wallet/funding/taji/crypto/generate-address', data: {
+      'taji_amount': tajiAmount,
+      'crypto_type': cryptoType,
+      'network': network,
+    });
+  }
+
+  Future<Response> generateUsdtCryptoDepositAddress({
+    required double usdtAmount,
+    required String cryptoType,
+    required String network,
+  }) async {
+    return await post('/wallet/funding/usdt/crypto/generate-address', data: {
+      'usdt_amount': usdtAmount,
+      'crypto_type': cryptoType,
+      'network': network,
+    });
+  }
+
+  Future<Response> checkCryptoPaymentStatus(String paymentReference) async {
+    print('🔵 [API DEBUG] checkCryptoPaymentStatus called');
+    print('🔵 [API DEBUG] Payment reference: $paymentReference');
+    
+    // Determine endpoint based on payment reference
+    final isUsdt = paymentReference.startsWith('CRYPTO_USDT_');
+    final endpoint = isUsdt 
+        ? '/wallet/funding/usdt/crypto/check-payment'
+        : '/wallet/funding/taji/crypto/check-payment';
+    print('🔵 [API DEBUG] Endpoint: $endpoint');
+    
+    try {
+      final response = await post(endpoint, data: {
+        'payment_reference': paymentReference,
+      });
+      
+      print('✅ [API DEBUG] checkCryptoPaymentStatus response received');
+      print('🔵 [API DEBUG] Response status: ${response.statusCode}');
+      print('🔵 [API DEBUG] Response data: ${response.data}');
+      
+      return response;
+    } catch (e) {
+      print('❌ [API DEBUG] checkCryptoPaymentStatus error');
+      print('❌ [API DEBUG] Error type: ${e.runtimeType}');
+      print('❌ [API DEBUG] Error message: $e');
+      if (e is DioException) {
+        print('❌ [API DEBUG] DioException type: ${e.type}');
+        print('❌ [API DEBUG] DioException message: ${e.message}');
+        print('❌ [API DEBUG] DioException request path: ${e.requestOptions.path}');
+        print('❌ [API DEBUG] DioException request data: ${e.requestOptions.data}');
+        print('❌ [API DEBUG] DioException response status: ${e.response?.statusCode}');
+        print('❌ [API DEBUG] DioException response data: ${e.response?.data}');
+      }
+      rethrow;
+    }
+  }
+
+  Future<Response> processCryptoPayment(String paymentReference) async {
+    print('🔵 [API DEBUG] processCryptoPayment called');
+    print('🔵 [API DEBUG] Payment reference: $paymentReference');
+    
+    // Determine endpoint based on payment reference
+    final isUsdt = paymentReference.startsWith('CRYPTO_USDT_');
+    final endpoint = isUsdt 
+        ? '/wallet/funding/usdt/crypto/process-payment'
+        : '/wallet/funding/taji/crypto/process-payment';
+    print('🔵 [API DEBUG] Endpoint: $endpoint');
+    
+    try {
+      final response = await post(endpoint, data: {
+        'payment_reference': paymentReference,
+      });
+      
+      print('✅ [API DEBUG] processCryptoPayment response received');
+      print('🔵 [API DEBUG] Response status: ${response.statusCode}');
+      print('🔵 [API DEBUG] Response data: ${response.data}');
+      
+      return response;
+    } catch (e) {
+      print('❌ [API DEBUG] processCryptoPayment error');
+      print('❌ [API DEBUG] Error type: ${e.runtimeType}');
+      print('❌ [API DEBUG] Error message: $e');
+      if (e is DioException) {
+        print('❌ [API DEBUG] DioException type: ${e.type}');
+        print('❌ [API DEBUG] DioException message: ${e.message}');
+        print('❌ [API DEBUG] DioException request path: ${e.requestOptions.path}');
+        print('❌ [API DEBUG] DioException request data: ${e.requestOptions.data}');
+        print('❌ [API DEBUG] DioException response status: ${e.response?.statusCode}');
+        print('❌ [API DEBUG] DioException response data: ${e.response?.data}');
+      }
+      rethrow;
+    }
+  }
+
+  Future<Response> fundTajiViaUsdt(double tajiAmount) async {
+    print('🔵 [API DEBUG] fundTajiViaUsdt called');
+    print('🔵 [API DEBUG] TAJI amount: $tajiAmount');
+    print('🔵 [API DEBUG] Endpoint: /wallet/funding/taji-via-usdt');
+    print('🔵 [API DEBUG] Request data: {\'taji_amount\': $tajiAmount}');
+    
+    try {
+      final response = await post('/wallet/funding/taji-via-usdt', data: {
+        'taji_amount': tajiAmount,
+      });
+      
+      print('✅ [API DEBUG] fundTajiViaUsdt response received');
+      print('🔵 [API DEBUG] Response status: ${response.statusCode}');
+      print('🔵 [API DEBUG] Response data: ${response.data}');
+      
+      return response;
+    } catch (e) {
+      print('❌ [API DEBUG] fundTajiViaUsdt error');
+      print('❌ [API DEBUG] Error type: ${e.runtimeType}');
+      print('❌ [API DEBUG] Error message: $e');
+      if (e is DioException) {
+        print('❌ [API DEBUG] DioException type: ${e.type}');
+        print('❌ [API DEBUG] DioException message: ${e.message}');
+        print('❌ [API DEBUG] DioException request path: ${e.requestOptions.path}');
+        print('❌ [API DEBUG] DioException request data: ${e.requestOptions.data}');
+        print('❌ [API DEBUG] DioException response status: ${e.response?.statusCode}');
+        print('❌ [API DEBUG] DioException response data: ${e.response?.data}');
+      }
+      rethrow;
+    }
+  }
+
+  Future<Response> connectWallet(String walletAddress) async {
+    return await post('/wallet/connect', data: {'wallet_address': walletAddress});
+  }
+
+  Future<Response> getTajiBalanceFromWallet(String walletAddress) async {
+    // Using public BSC RPC endpoint to query blockchain directly
+    // TAJI token contract: 0xF1b6059dbC8B44Ca90C5D2bE77e0cBea3b1965fe
+    // TAJI has 8 decimals
+    const String tajiTokenAddress = '0xF1b6059dbC8B44Ca90C5D2bE77e0cBea3b1965fe';
+    const String bscRpcUrl = 'https://bsc-dataseed1.binance.org/';
+    
+    // ERC20 balanceOf function signature: 0x70a08231
+    // balanceOf(address) -> bytes4(keccak256("balanceOf(address)")) = 0x70a08231
+    // Encode the function call: 0x70a08231 + padded address (32 bytes)
+    final String functionSelector = '0x70a08231';
+    final String paddedAddress = walletAddress.toLowerCase().replaceFirst('0x', '').padLeft(64, '0');
+    final String data = functionSelector + paddedAddress;
+    
+    // Create a public Dio instance for BSC RPC
+    final publicDio = Dio(BaseOptions(
+      baseUrl: bscRpcUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+    ));
+    
+    try {
+      // Make eth_call to get balance
+      final rpcResponse = await publicDio.post('', data: {
+        'jsonrpc': '2.0',
+        'method': 'eth_call',
+        'params': [
+          {
+            'to': tajiTokenAddress,
+            'data': data,
+          },
+          'latest'
+        ],
+        'id': 1,
+      });
+      
+      // Parse the response
+      double balance = 0.0;
+      if (rpcResponse.data['result'] != null && rpcResponse.data['result'] != '0x') {
+        final balanceHex = rpcResponse.data['result'] as String;
+        // Convert hex to BigInt, then divide by 10^8 (TAJI has 8 decimals)
+        final balanceBigInt = BigInt.parse(balanceHex.replaceFirst('0x', ''), radix: 16);
+        balance = balanceBigInt.toDouble() / 100000000; // 10^8
+      }
+      
+      // Return in the same format as expected
+      return Response(
+        data: {
+          'success': true,
+          'data': {
+            'balance': balance.toString(),
+            'walletAddress': walletAddress,
+            'tokenAddress': tajiTokenAddress,
+            'symbol': 'TAJI'
+          }
+        },
+        statusCode: 200,
+        requestOptions: RequestOptions(
+          path: bscRpcUrl,
+          method: 'POST',
+        ),
+      );
+    } catch (e) {
+      // If RPC fails, try backup RPC endpoints
+      final backupRpcUrls = [
+        'https://bsc-dataseed.binance.org/',
+        'https://bsc-dataseed1.defibit.io/',
+        'https://bsc-dataseed1.ninicoin.io/',
+      ];
+      
+      for (final rpcUrl in backupRpcUrls) {
+        try {
+          final backupDio = Dio(BaseOptions(
+            baseUrl: rpcUrl,
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 10),
+          ));
+          
+          final rpcResponse = await backupDio.post('', data: {
+            'jsonrpc': '2.0',
+            'method': 'eth_call',
+            'params': [
+              {
+                'to': tajiTokenAddress,
+                'data': data,
+              },
+              'latest'
+            ],
+            'id': 1,
+          });
+          
+          double balance = 0.0;
+          if (rpcResponse.data['result'] != null && rpcResponse.data['result'] != '0x') {
+            final balanceHex = rpcResponse.data['result'] as String;
+            final balanceBigInt = BigInt.parse(balanceHex.replaceFirst('0x', ''), radix: 16);
+            balance = balanceBigInt.toDouble() / 100000000;
+          }
+          
+          return Response(
+            data: {
+              'success': true,
+              'data': {
+                'balance': balance.toString(),
+                'walletAddress': walletAddress,
+                'tokenAddress': tajiTokenAddress,
+                'symbol': 'TAJI'
+              }
+            },
+            statusCode: 200,
+            requestOptions: RequestOptions(
+              path: rpcUrl,
+              method: 'POST',
+            ),
+          );
+        } catch (_) {
+          continue;
+        }
+      }
+      
+      // If all RPC endpoints fail, return 0 balance
+      return Response(
+        data: {
+          'success': true,
+          'data': {
+            'balance': '0',
+            'walletAddress': walletAddress,
+            'tokenAddress': tajiTokenAddress,
+            'symbol': 'TAJI'
+          }
+        },
+        statusCode: 200,
+        requestOptions: RequestOptions(
+          path: bscRpcUrl,
+          method: 'POST',
+        ),
+      );
+    }
   }
 
   Future<Response> getGifts({

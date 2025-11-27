@@ -733,13 +733,6 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
     }
   }
 
-  String _formatDuration(Duration d) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final m = twoDigits(d.inMinutes.remainder(60));
-    final s = twoDigits(d.inSeconds.remainder(60));
-    return '${d.inHours > 0 ? '${twoDigits(d.inHours)}:' : ''}$m:$s';
-  }
-
   String _formatCount(int count) {
     if (count >= 1000000) {
       return '${(count / 1000000).toStringAsFixed(1)}M';
@@ -817,7 +810,6 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
               onPageChanged: _onPageChanged,
               itemCount: widget.videos.length,
               itemBuilder: (context, index) {
-                final video = widget.videos[index];
                 final controller = _videoControllers[index]!;
                 return AnimatedBuilder(
                   animation: _pageController,
@@ -906,6 +898,8 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
             // User info & actions
             Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -916,7 +910,10 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
                     const SizedBox(width: 8),
                     const Padding(
                       padding: EdgeInsets.only(top: 8.0),
-                      child: Text('username', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'username',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
                     ),
                     const Spacer(),
                     GestureDetector(
@@ -969,9 +966,11 @@ class _ShortsPlayerScreenState extends State<ShortsPlayerScreen> {
                       child: _iconStatColumn(Icons.share_outlined, '12.5K'),
                     ),
                   ],
+                ),
               ),
             ),
           ],
+        ),
         ),
       ),
     );

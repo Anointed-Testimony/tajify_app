@@ -23,6 +23,7 @@ import '../screens/create_content_screen.dart';
 import '../screens/tube_player_screen.dart';
 import '../screens/shorts_player_screen.dart';
 import '../screens/saved_posts_screen.dart';
+import '../screens/market_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -175,6 +176,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/earn',
       builder: (context, state) => const EarningCenterScreen(),
+    ),
+    GoRoute(
+      path: '/market',
+      builder: (context, state) => const MarketScreen(),
     ),
     GoRoute(
       path: '/blog/:uuid',
