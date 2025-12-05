@@ -7,6 +7,7 @@ import 'paystack_screen.dart';
 import '../services/api_service.dart';
 import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
+import '../services/walletconnect_service.dart';
 import '../widgets/tajify_top_bar.dart';
 
 class EarningCenterScreen extends StatefulWidget {
@@ -28,6 +29,8 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
 
   late final AnimationController _heroController;
   late final Animation<double> _heroFade;
+  double _heroOpacity = 0.0;
+  VoidCallback? _heroOpacityListener;
   
   // Notification state
   int _notificationUnreadCount = 0;
@@ -78,6 +81,16 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
       duration: const Duration(milliseconds: 600),
     );
     _heroFade = CurvedAnimation(parent: _heroController, curve: Curves.easeInOut);
+    
+    // Safely listen to animation changes
+    _heroOpacityListener = () {
+      if (mounted) {
+        setState(() {
+          _heroOpacity = _heroFade.value;
+        });
+      }
+    };
+    _heroFade.addListener(_heroOpacityListener!);
 
     _loadInitialData();
     _loadNotificationUnreadCount();
@@ -278,8 +291,13 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
   }
 
   Future<void> _fetchHistory({required String filter}) async {
+    if (mounted) {
+      setState(() {
+        _loadingHistory = true;
+      });
+    }
     try {
-      final response = await _apiService.getRecentEarnings(limit: 60);
+      final response = await _apiService.getWalletTransactions(limit: 100);
       final payload = response.data['data'] ?? response.data;
       if (payload is List) {
         final filtered = _filterHistory(payload, filter);
@@ -289,12 +307,24 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             _historyFilter = filter;
           });
         }
+      } else {
+        if (mounted) {
+          setState(() {
+            _earningHistory = [];
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _earningHistory = [];
           _dashboardError ??= e.toString();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingHistory = false;
         });
       }
     }
@@ -446,6 +476,14 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
 
   @override
   void dispose() {
+    // Remove listener before disposing controller
+    if (_heroOpacityListener != null) {
+      try {
+        _heroFade.removeListener(_heroOpacityListener!);
+      } catch (e) {
+        // Ignore if already disposed
+      }
+    }
     _heroController.dispose();
     _notificationTimer?.cancel();
     _messagesCountSubscription?.cancel();
@@ -471,12 +509,6 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
   double get _usdtBalance {
     final wallet = _walletPayload?['wallet'] ?? _walletPayload;
     return _parseDouble(wallet?['usdt_balance']);
-  }
-
-  String _formatFiat(double amount, {String symbol = '₦'}) {
-    if (amount >= 1000000) return '$symbol${(amount / 1000000).toStringAsFixed(1)}M';
-    if (amount >= 1000) return '$symbol${(amount / 1000).toStringAsFixed(1)}K';
-    return '$symbol${amount.toStringAsFixed(2)}';
   }
 
   String _formatToken(double amount, {String suffix = 'TAJSTARS'}) {
@@ -514,6 +546,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
 
   void _openFundWalletSheet() {
     final amountController = TextEditingController();
+    bool isModalOpen = true; // Track if modal is still open
     
     showModalBottomSheet(
       context: context,
@@ -553,25 +586,47 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
 
             // Calculate total with fee for USDT Paystack (convert to Naira)
             Map<String, dynamic>? getUsdtPaystackBreakdown() {
-              if (currency != 'usdt' || method != 'paystack' || amountText.isEmpty) return null;
+              if (currency != 'usdt' || method != 'paystack' || amountText.isEmpty) {
+                print('🔵 [PAYSTACK DEBUG] Breakdown calculation skipped - conditions not met');
+                print('   - currency: $currency (expected: usdt)');
+                print('   - method: $method (expected: paystack)');
+                print('   - amountText empty: ${amountText.isEmpty}');
+                return null;
+              }
+              
+              print('🔵 [PAYSTACK DEBUG] Calculating Paystack breakdown');
               final usdtAmount = double.tryParse(amountText);
-              if (usdtAmount == null || usdtAmount <= 0) return null;
+              if (usdtAmount == null || usdtAmount <= 0) {
+                print('⚠️ [PAYSTACK DEBUG] Invalid amount: $amountText');
+                return null;
+              }
+              
+              print('🔵 [PAYSTACK DEBUG] USDT amount: $usdtAmount');
               
               // Add 3% fee
               final feeUsdt = usdtAmount * 0.03;
               final totalUsdt = usdtAmount + feeUsdt;
               
-              // Convert to Naira (using USD rate, fallback to 1500)
-              final usdToNgnRate = 1500.0; // Fallback rate
+              print('🔵 [PAYSTACK DEBUG] Fee (3%): $feeUsdt USDT');
+              print('🔵 [PAYSTACK DEBUG] Total USDT: $totalUsdt');
+              
+              // Convert to Naira using actual exchange rate from API
+              final usdToNgnRate = _usdToNgn ?? 1500.0; // Use fetched rate or fallback
               final totalNaira = totalUsdt * usdToNgnRate;
               
-              return {
+              print('🔵 [PAYSTACK DEBUG] Exchange rate (from API): $usdToNgnRate');
+              print('🔵 [PAYSTACK DEBUG] Total Naira: $totalNaira');
+              
+              final breakdown = {
                 'usdt_amount': usdtAmount,
                 'fee_usdt': feeUsdt,
                 'total_usdt': totalUsdt,
                 'total_naira': totalNaira,
                 'exchange_rate': usdToNgnRate,
               };
+              
+              print('🔵 [PAYSTACK DEBUG] Breakdown calculated: $breakdown');
+              return breakdown;
             }
 
             // Get breakdown for display (in selected crypto: BNB or USDT)
@@ -653,9 +708,32 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             Future<void> submit() async {
               print('🔵 [TAJI FUNDING DEBUG] Submit button pressed');
               print('🔵 [TAJI FUNDING DEBUG] Currency: $currency');
-              print('🔵 [TAJI FUNDING DEBUG] Amount text: ${amountController.text}');
               
-              final amount = double.tryParse(amountController.text.trim());
+              // Add Paystack-specific debug when Paystack is selected
+              if (currency == 'usdt' && method == 'paystack') {
+                print('🔵 [PAYSTACK DEBUG] ========================================');
+                print('🔵 [PAYSTACK DEBUG] Paystack funding submit initiated');
+                print('🔵 [PAYSTACK DEBUG] Currency: $currency');
+                print('🔵 [PAYSTACK DEBUG] Method: $method');
+              }
+              
+              // Safely get amount text before async operations
+              String amountTextValue = '';
+              if (!isModalOpen) {
+                // Modal closed, use state variable
+                amountTextValue = amountText;
+              } else {
+                try {
+                  amountTextValue = amountController.text.trim();
+                } catch (e) {
+                  // If controller is disposed, use state variable
+                  amountTextValue = amountText;
+                }
+              }
+              
+              print('🔵 [TAJI FUNDING DEBUG] Amount text: $amountTextValue');
+              
+              final amount = double.tryParse(amountTextValue);
               print('🔵 [TAJI FUNDING DEBUG] Parsed amount: $amount');
               
               if (amount == null || amount <= 0) {
@@ -751,28 +829,78 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     return; // Exit early for crypto payment
                   } else {
                     // USDT funding via Paystack
-                    print('🔵 [USDT FUNDING DEBUG] Calling initializeWalletFunding');
-                    print('🔵 [USDT FUNDING DEBUG] Currency: $currency, Amount: $amount, Method: $method');
+                    print('🔵 [PAYSTACK DEBUG] ========================================');
+                    print('🔵 [PAYSTACK DEBUG] Starting Paystack funding flow');
+                    print('🔵 [PAYSTACK DEBUG] Currency: $currency');
+                    print('🔵 [PAYSTACK DEBUG] Amount: $amount');
+                    print('🔵 [PAYSTACK DEBUG] Method: $method');
+                    print('🔵 [PAYSTACK DEBUG] Calling initializeWalletFunding API');
                     
                     try {
+                      print('🔵 [PAYSTACK DEBUG] API request parameters:');
+                      print('   - currency: $currency');
+                      print('   - amount: $amount');
+                      print('   - paymentMethod: $method');
+                      
                       response = await _apiService.initializeWalletFunding(
                         currency: currency,
                         amount: amount,
                         paymentMethod: method,
                       );
-                      print('✅ [USDT FUNDING DEBUG] API call successful');
-                      print('🔵 [USDT FUNDING DEBUG] Response status: ${response.statusCode}');
-                      print('🔵 [USDT FUNDING DEBUG] Response data: ${response.data}');
-                    } catch (apiError) {
-                      print('❌ [USDT FUNDING DEBUG] API call failed');
-                      print('❌ [USDT FUNDING DEBUG] Error type: ${apiError.runtimeType}');
-                      print('❌ [USDT FUNDING DEBUG] Error message: $apiError');
-                      if (apiError is dio.DioException) {
-                        print('❌ [USDT FUNDING DEBUG] DioException type: ${apiError.type}');
-                        print('❌ [USDT FUNDING DEBUG] DioException message: ${apiError.message}');
-                        print('❌ [USDT FUNDING DEBUG] DioException response: ${apiError.response?.data}');
-                        print('❌ [USDT FUNDING DEBUG] DioException status code: ${apiError.response?.statusCode}');
+                      
+                      print('✅ [PAYSTACK DEBUG] API call successful');
+                      print('🔵 [PAYSTACK DEBUG] Response status code: ${response.statusCode}');
+                      print('🔵 [PAYSTACK DEBUG] Full response data: ${response.data}');
+                      
+                      if (response.data is Map) {
+                        final responseMap = response.data as Map;
+                        print('🔵 [PAYSTACK DEBUG] Response success: ${responseMap['success']}');
+                        print('🔵 [PAYSTACK DEBUG] Response message: ${responseMap['message']}');
+                        
+                        if (responseMap['data'] != null) {
+                          final data = responseMap['data'];
+                          if (data is Map) {
+                            print('🔵 [PAYSTACK DEBUG] Response data keys: ${data.keys.toList()}');
+                            if (data['authorization_url'] != null) {
+                              print('🔵 [PAYSTACK DEBUG] Authorization URL: ${data['authorization_url']}');
+                            }
+                            if (data['reference'] != null) {
+                              print('🔵 [PAYSTACK DEBUG] Payment reference: ${data['reference']}');
+                            }
+                            if (data['usdt_amount'] != null) {
+                              print('🔵 [PAYSTACK DEBUG] USDT amount: ${data['usdt_amount']}');
+                            }
+                            if (data['fee_usdt'] != null) {
+                              print('🔵 [PAYSTACK DEBUG] Fee USDT: ${data['fee_usdt']}');
+                            }
+                            if (data['total_usdt'] != null) {
+                              print('🔵 [PAYSTACK DEBUG] Total USDT: ${data['total_usdt']}');
+                            }
+                            if (data['naira_amount'] != null) {
+                              print('🔵 [PAYSTACK DEBUG] Naira amount: ${data['naira_amount']}');
+                            }
+                            if (data['exchange_rate'] != null) {
+                              print('🔵 [PAYSTACK DEBUG] Exchange rate: ${data['exchange_rate']}');
+                            }
+                          }
+                        }
                       }
+                    } catch (apiError) {
+                      print('❌ [PAYSTACK DEBUG] API call failed');
+                      print('❌ [PAYSTACK DEBUG] Error type: ${apiError.runtimeType}');
+                      print('❌ [PAYSTACK DEBUG] Error message: $apiError');
+                      if (apiError is dio.DioException) {
+                        print('❌ [PAYSTACK DEBUG] DioException details:');
+                        print('   - Type: ${apiError.type}');
+                        print('   - Message: ${apiError.message}');
+                        print('   - Request path: ${apiError.requestOptions.path}');
+                        print('   - Request method: ${apiError.requestOptions.method}');
+                        print('   - Request data: ${apiError.requestOptions.data}');
+                        print('   - Response status: ${apiError.response?.statusCode}');
+                        print('   - Response data: ${apiError.response?.data}');
+                        print('   - Response headers: ${apiError.response?.headers}');
+                      }
+                      print('❌ [PAYSTACK DEBUG] ========================================');
                       rethrow;
                     }
                   }
@@ -788,6 +916,8 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                   return;
                 }
                 
+                // Mark modal as closed before popping
+                isModalOpen = false;
                 Navigator.of(modalContext).pop();
                 
                 if (currency == 'taji') {
@@ -805,25 +935,104 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                   print('🔵 [TAJI FUNDING DEBUG] Reloading initial data...');
                   _loadInitialData();
                 } else {
-                  print('✅ [TAJI FUNDING DEBUG] USDT funding initialized');
+                  // USDT funding via Paystack
+                  print('🔵 [PAYSTACK DEBUG] Processing Paystack funding response');
+                  print('🔵 [PAYSTACK DEBUG] Extracted data: $data');
+                  
                   _showSnack('Funding initialized successfully');
+                  
                   if (data is Map && data['authorization_url'] != null) {
-                    print('🔵 [TAJI FUNDING DEBUG] Opening authorization URL: ${data['authorization_url']}');
-                    if (!mounted) return;
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        fullscreenDialog: true,
-                        builder: (_) => PaystackScreen(
-                          url: data['authorization_url'].toString(),
+                    final authUrl = data['authorization_url'].toString();
+                    print('🔵 [PAYSTACK DEBUG] Authorization URL found: $authUrl');
+                    print('🔵 [PAYSTACK DEBUG] Checking if widget is mounted...');
+                    
+                    if (!mounted) {
+                      print('⚠️ [PAYSTACK DEBUG] Widget not mounted, cannot open Paystack screen');
+                      return;
+                    }
+                    
+                    print('🔵 [PAYSTACK DEBUG] Opening Paystack checkout screen');
+                    print('🔵 [PAYSTACK DEBUG] Navigating to PaystackScreen with URL: $authUrl');
+                    
+                    try {
+                      final result = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (_) {
+                            print('🔵 [PAYSTACK DEBUG] PaystackScreen widget created');
+                            final reference = data['reference']?.toString() ?? '';
+                            print('🔵 [PAYSTACK DEBUG] Payment reference: $reference');
+                            return PaystackScreen(
+                              url: authUrl,
+                              paymentReference: reference,
+                            );
+                          },
                         ),
-                      ),
-                    );
+                      );
+                      
+                      print('🔵 [PAYSTACK DEBUG] Returned from PaystackScreen');
+                      print('🔵 [PAYSTACK DEBUG] Result: $result');
+                      
+                      if (result == true) {
+                        print('✅ [PAYSTACK DEBUG] Payment was successful!');
+                        print('🔵 [PAYSTACK DEBUG] Refreshing wallet data...');
+                        
+                        // Show success message
+                        _showSnack('Payment successful! Wallet updated.', isError: false);
+                        
+                        // Refresh wallet data immediately
+                        try {
+                          await _fetchWallet();
+                          print('✅ [PAYSTACK DEBUG] Wallet data refreshed');
+                        } catch (e) {
+                          print('❌ [PAYSTACK DEBUG] Error refreshing wallet: $e');
+                        }
+                        
+                        // Reload initial data
+                        try {
+                          _loadInitialData();
+                          print('✅ [PAYSTACK DEBUG] Initial data reloaded');
+                        } catch (e) {
+                          print('❌ [PAYSTACK DEBUG] Error reloading initial data: $e');
+                        }
+                      } else {
+                        print('🔵 [PAYSTACK DEBUG] Payment may have been cancelled or failed');
+                      }
+                    } catch (e) {
+                      print('❌ [PAYSTACK DEBUG] Error opening PaystackScreen: $e');
+                      print('❌ [PAYSTACK DEBUG] Error type: ${e.runtimeType}');
+                    }
+                  } else {
+                    print('⚠️ [PAYSTACK DEBUG] No authorization_url found in response data');
+                    print('⚠️ [PAYSTACK DEBUG] Data type: ${data.runtimeType}');
+                    if (data is Map) {
+                      print('⚠️ [PAYSTACK DEBUG] Data keys: ${data.keys.toList()}');
+                    }
                   }
                   
                   // Refresh wallet data for USDT funding too
+                  print('🔵 [PAYSTACK DEBUG] Refreshing wallet data after Paystack flow');
+                  print('🔵 [PAYSTACK DEBUG] Waiting 500ms before refresh...');
                   await Future.delayed(const Duration(milliseconds: 500));
-                  await _fetchWallet();
-                  _loadInitialData();
+                  
+                  print('🔵 [PAYSTACK DEBUG] Fetching wallet data...');
+                  try {
+                    await _fetchWallet();
+                    print('✅ [PAYSTACK DEBUG] Wallet data fetched successfully');
+                  } catch (e) {
+                    print('❌ [PAYSTACK DEBUG] Error fetching wallet: $e');
+                  }
+                  
+                  print('🔵 [PAYSTACK DEBUG] Reloading initial data...');
+                  try {
+                    _loadInitialData();
+                    print('✅ [PAYSTACK DEBUG] Initial data reload triggered');
+                  } catch (e) {
+                    print('❌ [PAYSTACK DEBUG] Error reloading initial data: $e');
+                  }
+                  
+                  print('🔵 [PAYSTACK DEBUG] Paystack funding flow completed');
+                  print('🔵 [PAYSTACK DEBUG] ========================================');
                 }
                 
                 print('✅ [TAJI FUNDING DEBUG] Process completed successfully');
@@ -1007,15 +1216,25 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         textInputAction: TextInputAction.done,
                         onChanged: (value) {
-                          setSheetState(() {
-                            amountText = value;
-                          });
+                          if (!isModalOpen) return; // Don't update if modal is closed
+                          try {
+                            setSheetState(() {
+                              amountText = value;
+                            });
+                          } catch (e) {
+                            // Ignore if modal is closed
+                          }
                         },
                         onTap: () {
-                          // Ensure cursor is visible when tapped
-                          amountController.selection = TextSelection.fromPosition(
-                            TextPosition(offset: amountController.text.length),
-                          );
+                          // Ensure cursor is visible when tapped - safely
+                          if (!isModalOpen) return; // Don't access if modal is closed
+                          try {
+                            amountController.selection = TextSelection.fromPosition(
+                              TextPosition(offset: amountController.text.length),
+                            );
+                          } catch (e) {
+                            // Ignore if controller is disposed
+                          }
                         },
                         decoration: InputDecoration(
                           labelText: currency == 'taji' ? 'TAJI Amount' : 'Amount',
@@ -1205,23 +1424,33 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
         );
       },
     ).whenComplete(() {
+      // Mark modal as closed
+      isModalOpen = false;
       // Dispose controller when modal is closed - safely dispose
-      try {
-        amountController.dispose();
-      } catch (e) {
-        // Ignore disposal errors if already disposed
-      }
+      // Add a small delay to ensure all async operations complete
+      Future.delayed(const Duration(milliseconds: 100), () {
+        try {
+          amountController.dispose();
+        } catch (e) {
+          // Ignore disposal errors if already disposed
+        }
+      });
     });
   }
 
   void _openConvertSheet() {
+    final amountController = TextEditingController();
+    bool isModalOpen = true; // Track if modal is still open
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) {
-        final amountController = TextEditingController();
-        String mode = 'tajstars-naira';
+        String mode = 'tajstars-usdt'; // Default to TAJSTARS → USDT
         bool submitting = false;
         final modes = [
           {'value': 'tajstars-usdt', 'label': 'TAJSTARS → USDT'},
@@ -1229,11 +1458,28 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
         ];
 
         Future<void> submitConversion(StateSetter setSheetState) async {
-          final amount = double.tryParse(amountController.text.trim());
+          if (!isModalOpen) return; // Don't submit if modal is closed
+          
+          // Safely get amount text
+          String amountTextValue = '';
+          if (!isModalOpen) {
+            return; // Modal closed, can't proceed
+          } else {
+            try {
+              amountTextValue = amountController.text.trim();
+            } catch (e) {
+              // Controller disposed, can't proceed
+              return;
+            }
+          }
+          
+          final amount = double.tryParse(amountTextValue);
           if (amount == null || amount <= 0) {
             _showSnack('Enter a valid amount', isError: true);
             return;
           }
+          if (!isModalOpen || !mounted) return; // Check again before async operation
+          
           setSheetState(() => submitting = true);
           try {
             if (mode == 'tajstars-usdt') {
@@ -1241,13 +1487,18 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             } else {
               await _apiService.convertUsdtToTajstars({'amount': amount});
             }
-            if (!mounted) return;
+            if (!mounted || !isModalOpen) return;
+            
+            // Mark modal as closed before popping
+            isModalOpen = false;
             Navigator.of(context).pop();
             _showSnack('Conversion successful');
             _loadInitialData();
           } catch (e) {
-            setSheetState(() => submitting = false);
-            _showSnack(e.toString(), isError: true);
+            if (mounted && isModalOpen) {
+              setSheetState(() => submitting = false);
+              _showSnack(e.toString(), isError: true);
+            }
           }
         }
 
@@ -1324,6 +1575,122 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         ),
                       ),
                       style: const TextStyle(color: Colors.white),
+                      onChanged: (value) {
+                        if (!isModalOpen) return;
+                        try {
+                          setSheetState(() {
+                            // Trigger rebuild to update breakdown
+                          });
+                        } catch (e) {
+                          // Ignore if modal is closed
+                        }
+                      },
+                      onTap: () {
+                        // Ensure cursor is visible when tapped - safely
+                        if (!isModalOpen) return; // Don't access if modal is closed
+                        try {
+                          amountController.selection = TextSelection.fromPosition(
+                            TextPosition(offset: amountController.text.length),
+                          );
+                        } catch (e) {
+                          // Ignore if controller is disposed
+                        }
+                      },
+                    ),
+                    // Show breakdown for conversion
+                    Builder(
+                      builder: (context) {
+                        final amountText = amountController.text.trim();
+                        final amount = double.tryParse(amountText);
+                        
+                        if (amount == null || amount <= 0) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        // Calculate conversion based on mode
+                        double? receivedAmount;
+                        String rateText = '';
+                        String fromCurrency = '';
+                        String toCurrency = '';
+                        
+                        if (mode == 'tajstars-usdt') {
+                          // TAJSTARS → USDT: 1 TAJSTARS = 0.007 USDT
+                          receivedAmount = amount * 0.007;
+                          rateText = '1 TAJSTARS = 0.007 USDT';
+                          fromCurrency = 'TAJSTARS';
+                          toCurrency = 'USDT';
+                        } else if (mode == 'usdt-tajstars') {
+                          // USDT → TAJSTARS: 1 USDT = 100 TAJSTARS
+                          receivedAmount = amount * 100;
+                          rateText = '1 USDT = 100 TAJSTARS';
+                          fromCurrency = 'USDT';
+                          toCurrency = 'TAJSTARS';
+                        }
+                        
+                        if (receivedAmount == null) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        return Column(
+                          children: [
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Converting:',
+                                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                      ),
+                                      Text(
+                                        '${amount.toStringAsFixed(8)} $fromCurrency',
+                                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Exchange Rate:',
+                                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                      ),
+                                      Text(
+                                        rateText,
+                                        style: TextStyle(color: Colors.blue.shade300, fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(color: Colors.white24, height: 16),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'You\'ll Receive:',
+                                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        '${receivedAmount.toStringAsFixed(8)} $toCurrency',
+                                        style: const TextStyle(color: Colors.greenAccent, fontSize: 14, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
                     SizedBox(
@@ -1345,7 +1712,19 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
           },
         );
       },
-    );
+    ).whenComplete(() {
+      // Mark modal as closed
+      isModalOpen = false;
+      // Dispose controller when modal is closed - safely dispose
+      // Add a small delay to ensure all async operations complete
+      Future.delayed(const Duration(milliseconds: 100), () {
+        try {
+          amountController.dispose();
+        } catch (e) {
+          // Ignore disposal errors if already disposed
+        }
+      });
+    });
   }
 
   Future<void> _ensureBanksLoaded() async {
@@ -1367,50 +1746,94 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
       return;
     }
 
+    final amountController = TextEditingController();
+    final accountController = TextEditingController();
+    bool isModalOpen = true; // Track if modal is still open
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) {
         String currency = 'usdt';
         String? bankCode;
         String? bankName;
-        final amountController = TextEditingController();
-        final accountController = TextEditingController();
         String? accountName;
         bool validating = false;
         bool submitting = false;
 
         Future<void> validateAccount(StateSetter setSheetState) async {
+          if (!isModalOpen) return; // Don't validate if modal is closed
+          
           if (bankCode == null) {
             _showSnack('Select a bank first', isError: true);
             return;
           }
-          if (accountController.text.trim().length != 10) {
+          // Safely get account number
+          String accountNumber = '';
+          if (!isModalOpen) {
+            return; // Modal closed, can't proceed
+          } else {
+            try {
+              accountNumber = accountController.text.trim();
+            } catch (e) {
+              // Controller disposed, can't proceed
+              return;
+            }
+          }
+          
+          if (accountNumber.length != 10) {
             _showSnack('Enter a valid 10-digit account number', isError: true);
             return;
           }
+          
+          if (!isModalOpen || !mounted) return; // Check again before async operation
+          
           setSheetState(() => validating = true);
           try {
             final response = await _apiService.validateBankAccount(
-              accountNumber: accountController.text.trim(),
+              accountNumber: accountNumber,
               bankCode: bankCode!,
             );
             final data = response.data['data'] ?? response.data;
-            if (mounted) {
+            if (mounted && isModalOpen) {
               setSheetState(() {
                 accountName = data?['account_name']?.toString();
               });
             }
           } catch (e) {
-            _showSnack(e.toString(), isError: true);
+            if (mounted && isModalOpen) {
+              _showSnack(e.toString(), isError: true);
+            }
           } finally {
-            setSheetState(() => validating = false);
+            if (mounted && isModalOpen) {
+              setSheetState(() => validating = false);
+            }
           }
         }
 
         Future<void> submitWithdrawal(StateSetter setSheetState) async {
-          final amount = double.tryParse(amountController.text.trim());
+          if (!isModalOpen) return; // Don't submit if modal is closed
+          
+          // Safely get amount and account number
+          String amountTextValue = '';
+          String accountNumberValue = '';
+          if (!isModalOpen) {
+            return; // Modal closed, can't proceed
+          } else {
+            try {
+              amountTextValue = amountController.text.trim();
+              accountNumberValue = accountController.text.trim();
+            } catch (e) {
+              // Controller disposed, can't proceed
+              return;
+            }
+          }
+          
+          final amount = double.tryParse(amountTextValue);
           if (amount == null || amount <= 0) {
             _showSnack('Enter a valid amount', isError: true);
             return;
@@ -1419,7 +1842,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             _showSnack('Select a bank', isError: true);
             return;
           }
-          if (accountController.text.trim().length != 10) {
+          if (accountNumberValue.length != 10) {
             _showSnack('Enter a valid account number', isError: true);
             return;
           }
@@ -1427,14 +1850,28 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             _showSnack('Validate account first', isError: true);
             return;
           }
+          // Calculate 3% fee for display (backend will also calculate and deduct)
+          final fee = amount * 0.03;
+          final totalAmount = amount + fee;
+          
+          // Check balance before submitting (need total amount including fee)
+          if (currency == 'usdt') {
+            final currentBalance = _walletPayload?['usdt_balance'] ?? 0.0;
+            if (currentBalance < totalAmount) {
+              _showSnack('Insufficient USDT balance. You need ${totalAmount.toStringAsFixed(8)} USDT (including 3% fee)', isError: true);
+              setSheetState(() => submitting = false);
+              return;
+            }
+          }
+          
           setSheetState(() => submitting = true);
           try {
             await _apiService.createWithdrawal(
-              amount: amount,
+              amount: amount, // Send the withdrawal amount (without fee) - backend will calculate and deduct fee
               currencyType: currency,
               bankCode: bankCode!,
               bankName: bankName!,
-              accountNumber: accountController.text.trim(),
+              accountNumber: accountNumberValue,
               accountName: accountName!,
             );
             if (!mounted) return;
@@ -1557,7 +1994,45 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
-                        onChanged: (_) => setSheetState(() => accountName = null),
+                        onChanged: (value) {
+                          if (!isModalOpen) return; // Don't update if modal is closed
+                          try {
+                            setSheetState(() {
+                              accountName = null; // Clear account name when typing
+                            });
+                            
+                            // Auto-validate when account number reaches 10 digits
+                            if (value.trim().length == 10 && bankCode != null) {
+                              // Small delay to ensure user finished typing
+                              Future.delayed(const Duration(milliseconds: 300), () {
+                                if (isModalOpen && mounted) {
+                                  // Check again that it's still 10 digits and bank is selected
+                                  try {
+                                    final currentValue = accountController.text.trim();
+                                    if (currentValue.length == 10 && bankCode != null) {
+                                      validateAccount(setSheetState);
+                                    }
+                                  } catch (e) {
+                                    // Controller disposed, ignore
+                                  }
+                                }
+                              });
+                            }
+                          } catch (e) {
+                            // Ignore if modal is closed
+                          }
+                        },
+                        onTap: () {
+                          // Ensure cursor is visible when tapped - safely
+                          if (!isModalOpen) return; // Don't access if modal is closed
+                          try {
+                            accountController.selection = TextSelection.fromPosition(
+                              TextPosition(offset: accountController.text.length),
+                            );
+                          } catch (e) {
+                            // Ignore if controller is disposed
+                          }
+                        },
                       ),
                       const SizedBox(height: 8),
                       Row(
@@ -1600,6 +2075,108 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
+                        onChanged: (value) {
+                          if (!isModalOpen) return;
+                          try {
+                            setSheetState(() {
+                              // Trigger rebuild to update breakdown
+                            });
+                          } catch (e) {
+                            // Ignore if modal is closed
+                          }
+                        },
+                        onTap: () {
+                          // Ensure cursor is visible when tapped - safely
+                          if (!isModalOpen) return; // Don't access if modal is closed
+                          try {
+                            amountController.selection = TextSelection.fromPosition(
+                              TextPosition(offset: amountController.text.length),
+                            );
+                          } catch (e) {
+                            // Ignore if controller is disposed
+                          }
+                        },
+                      ),
+                      // Show breakdown for withdrawal
+                      Builder(
+                        builder: (context) {
+                          final amountText = amountController.text.trim();
+                          final amount = double.tryParse(amountText);
+                          
+                          if (amount == null || amount <= 0) {
+                            return const SizedBox.shrink();
+                          }
+                          
+                          // Calculate 3% fee
+                          final fee = amount * 0.03;
+                          final total = amount + fee;
+                          
+                          return Column(
+                            children: [
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Withdrawal Amount:',
+                                          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                        ),
+                                        Text(
+                                          currency == 'usdt' 
+                                              ? '${amount.toStringAsFixed(8)} USDT'
+                                              : '₦${amount.toStringAsFixed(2)}',
+                                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Fee (3%):',
+                                          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                        ),
+                                        Text(
+                                          currency == 'usdt'
+                                              ? '${fee.toStringAsFixed(8)} USDT'
+                                              : '₦${fee.toStringAsFixed(2)}',
+                                          style: TextStyle(color: Colors.orange.shade300, fontSize: 12, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                    const Divider(color: Colors.white24, height: 16),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Total to Deduct:',
+                                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          currency == 'usdt'
+                                              ? '${total.toStringAsFixed(8)} USDT'
+                                              : '₦${total.toStringAsFixed(2)}',
+                                          style: const TextStyle(color: Colors.orangeAccent, fontSize: 14, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 20),
                       SizedBox(
@@ -1622,22 +2199,577 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
           },
         );
       },
-    );
+    ).whenComplete(() {
+      // Mark modal as closed
+      isModalOpen = false;
+      // Dispose controllers when modal is closed - safely dispose
+      // Add a small delay to ensure all async operations complete
+      Future.delayed(const Duration(milliseconds: 100), () {
+        try {
+          amountController.dispose();
+        } catch (e) {
+          // Ignore disposal errors if already disposed
+        }
+        try {
+          accountController.dispose();
+        } catch (e) {
+          // Ignore disposal errors if already disposed
+        }
+      });
+    });
+  }
+
+  void _openTransferSheet() {
+    final amountController = TextEditingController();
+    final emailController = TextEditingController();
+    bool isModalOpen = true; // Track if modal is still open
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (context) {
+        String currency = 'usdt';
+        bool submitting = false;
+        String? recipientName;
+
+        Future<void> validateRecipient(StateSetter setSheetState) async {
+          if (!isModalOpen) return;
+          
+          // Safely get email
+          String email = '';
+          if (!isModalOpen) {
+            return;
+          } else {
+            try {
+              email = emailController.text.trim();
+            } catch (e) {
+              return;
+            }
+          }
+          
+          if (email.isEmpty) {
+            _showSnack('Enter recipient email', isError: true);
+            return;
+          }
+          
+          if (!isModalOpen || !mounted) return;
+          
+          try {
+            final response = await _apiService.validateRecipientEmail(email);
+            final data = response.data['data'] ?? response.data;
+            if (mounted && isModalOpen) {
+              final hasWalletAddress = data?['has_wallet_address'] ?? false;
+              
+              // For TAJI transfers, wallet address is required
+              if (currency == 'taji' && !hasWalletAddress) {
+                setSheetState(() {
+                  recipientName = null;
+                });
+                _showSnack('Recipient has not connected their wallet address', isError: true);
+                return;
+              }
+              
+              // User found and validated
+              setSheetState(() {
+                recipientName = data?['username']?.toString() ?? data?['name']?.toString();
+              });
+            }
+          } catch (e) {
+            if (mounted && isModalOpen) {
+              setSheetState(() {
+                recipientName = null;
+              });
+              
+              // Check error message
+              String errorMessage = '';
+              if (e is dio.DioException && e.response != null) {
+                errorMessage = e.response?.data?['message']?.toString() ?? e.toString();
+              } else {
+                errorMessage = e.toString();
+              }
+              
+              _showSnack(errorMessage.contains('does not exist') ? 'Recipient not found' : errorMessage, isError: true);
+            }
+          }
+        }
+
+        Future<void> submitTransfer(StateSetter setSheetState) async {
+          if (!isModalOpen) return;
+          
+          print('🔵 [TAJI FUNDING] ========================================');
+          print('🔵 [TAJI FUNDING] Transfer submission started');
+          print('🔵 [TAJI FUNDING] Currency: $currency');
+          
+          // Safely get amount and email
+          String amountTextValue = '';
+          String emailValue = '';
+          if (!isModalOpen) {
+            return;
+          } else {
+            try {
+              amountTextValue = amountController.text.trim();
+              emailValue = emailController.text.trim();
+            } catch (e) {
+              print('❌ [TAJI FUNDING] Error getting input values: $e');
+              return;
+            }
+          }
+          
+          print('🔵 [TAJI FUNDING] Amount text: $amountTextValue');
+          print('🔵 [TAJI FUNDING] Email: $emailValue');
+          
+          final amount = double.tryParse(amountTextValue);
+          if (amount == null || amount <= 0) {
+            print('❌ [TAJI FUNDING] Invalid amount: $amountTextValue');
+            _showSnack('Enter a valid amount', isError: true);
+            return;
+          }
+          
+          if (emailValue.isEmpty) {
+            print('❌ [TAJI FUNDING] Email is empty');
+            _showSnack('Enter recipient email', isError: true);
+            return;
+          }
+          
+          if ((recipientName ?? '').isEmpty) {
+            print('❌ [TAJI FUNDING] Recipient not validated');
+            _showSnack('Validate recipient first', isError: true);
+            return;
+          }
+          
+          print('🔵 [TAJI FUNDING] Recipient name: $recipientName');
+          
+          if (!isModalOpen || !mounted) return;
+          
+          setSheetState(() => submitting = true);
+          print('🔵 [TAJI FUNDING] Submitting state set to true');
+          
+          try {
+            if (currency == 'usdt') {
+              print('🔵 [TAJI FUNDING] Processing USDT transfer (not TAJI)');
+              await _apiService.sendUsdt(
+                recipientEmail: emailValue,
+                amount: amount,
+              );
+            } else {
+              // For TAJI, need wallet address
+              print('🔵 [TAJI FUNDING] Starting TAJI transfer process');
+              print('🔵 [TAJI FUNDING] Amount: $amount');
+              print('🔵 [TAJI FUNDING] Recipient email: $emailValue');
+              
+              if (_walletAddress == null || _walletAddress!.isEmpty) {
+                print('❌ [TAJI FUNDING] Sender wallet not connected');
+                _showSnack('Please connect your wallet first', isError: true);
+                setSheetState(() => submitting = false);
+                return;
+              }
+              
+              print('🔵 [TAJI FUNDING] Sender wallet: ${_walletAddress}');
+              
+              // Get recipient wallet address (validate again to get wallet)
+              print('🔵 [TAJI FUNDING] Validating recipient email...');
+              final validateResponse = await _apiService.validateRecipientEmail(emailValue);
+              print('🔵 [TAJI FUNDING] Validation response status: ${validateResponse.statusCode}');
+              print('🔵 [TAJI FUNDING] Validation response data: ${validateResponse.data}');
+              
+              final recipientData = validateResponse.data['data'] ?? validateResponse.data;
+              final recipientWallet = recipientData?['wallet_address'];
+              
+              print('🔵 [TAJI FUNDING] Recipient wallet address: $recipientWallet');
+              
+              if (recipientWallet == null || recipientWallet.isEmpty) {
+                print('❌ [TAJI FUNDING] Recipient has not connected a wallet');
+                _showSnack('Recipient has not connected a wallet', isError: true);
+                setSheetState(() => submitting = false);
+                return;
+              }
+              
+              print('🔵 [TAJI FUNDING] Calling sendTaji API...');
+              print('🔵 [TAJI FUNDING] Request data: {');
+              print('🔵 [TAJI FUNDING]   recipient_email: $emailValue,');
+              print('🔵 [TAJI FUNDING]   recipient_wallet: $recipientWallet,');
+              print('🔵 [TAJI FUNDING]   amount: $amount,');
+              print('🔵 [TAJI FUNDING]   sender_wallet: ${_walletAddress}');
+              print('🔵 [TAJI FUNDING] }');
+              
+              try {
+                // Step 1: get prepared transaction
+                final response = await _apiService.sendTaji(
+                  recipientEmail: emailValue,
+                  recipientWallet: recipientWallet,
+                  amount: amount,
+                  senderWallet: _walletAddress!,
+                );
+                
+                print('✅ [TAJI FUNDING] API call successful');
+                print('🔵 [TAJI FUNDING] Response status: ${response.statusCode}');
+                print('🔵 [TAJI FUNDING] Response data: ${response.data}');
+                
+                if (response.data['success'] != true) {
+                  print('❌ [TAJI FUNDING] Backend returned failure');
+                  print('❌ [TAJI FUNDING] Message: ${response.data['message']}');
+                  throw Exception(response.data['message'] ?? 'Failed to execute transaction');
+                }
+                
+                final responseData = response.data['data'];
+                final txHash = responseData['txHash'];
+                
+                if (txHash != null && txHash.toString().isNotEmpty) {
+                  print('✅ [TAJI FUNDING] Transaction executed on-chain successfully!');
+                  print('🔵 [TAJI FUNDING] Transaction hash: $txHash');
+                  print('🔵 [TAJI FUNDING] Block number: ${responseData['blockNumber']}');
+                } else {
+                  print('⚠️ [TAJI FUNDING] Transaction prepared but NOT executed on-chain');
+                  print('⚠️ [TAJI FUNDING] Using WalletConnect to sign and send transaction...');
+                  
+                  final txData = responseData['transaction'];
+                  if (txData == null) {
+                    throw Exception('Transaction data not found in response');
+                  }
+                  
+                  final nonceHex = txData['nonce']?.toString() ?? '0x0';
+                  final gasPriceHex = txData['gasPrice']?.toString() ?? '0x0';
+                  final gasHex = txData['gas']?.toString() ?? '0x0';
+                  final toAddress = txData['to']?.toString() ?? '';
+                  final dataHex = txData['data']?.toString() ?? '0x';
+                  final valueHex = txData['value']?.toString() ?? '0x0';
+                  final chainId = responseData['chain_id'] ?? 56;
+                  final rpcUrl = responseData['rpc_url'] ?? 'https://bsc-dataseed1.binance.org/';
+                  
+                  BigInt hexToBigInt(String hex) {
+                    if (hex.startsWith('0x')) {
+                      return BigInt.parse(hex.substring(2), radix: 16);
+                    }
+                    return BigInt.parse(hex, radix: 16);
+                  }
+                  
+                  final nonce = hexToBigInt(nonceHex);
+                  final gasPrice = hexToBigInt(gasPriceHex);
+                  final gasLimit = hexToBigInt(gasHex);
+                  final value = hexToBigInt(valueHex);
+                  
+                  final walletConnectService = WalletConnectService.instance;
+                  
+                  if (!walletConnectService.isConnected) {
+                    setSheetState(() => submitting = false);
+                    
+                    final shouldConnect = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Connect Wallet'),
+                        content: const Text('Open your wallet to approve this transfer.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Connect'),
+                          ),
+                        ],
+                      ),
+                    );
+                    
+                    if (shouldConnect != true) {
+                      throw Exception('Wallet connection cancelled');
+                    }
+                    
+                    final connectedAddress =
+                        await walletConnectService.connectWallet(context, chainId: chainId);
+                    
+                    if (connectedAddress == null || connectedAddress.isEmpty) {
+                      throw Exception('Failed to connect wallet');
+                    }
+                    
+                    if (connectedAddress.toLowerCase() != _walletAddress!.toLowerCase()) {
+                      throw Exception(
+                          'Connected wallet does not match sender wallet.\nExpected: $_walletAddress\nConnected: $connectedAddress');
+                    }
+                    
+                    setSheetState(() => submitting = true);
+                  }
+                  
+                  final signedHash = await walletConnectService.signAndSendTransaction(
+                    rpcUrl: rpcUrl,
+                    to: toAddress,
+                    from: _walletAddress!,
+                    value: value,
+                    data: dataHex,
+                    chainId: chainId,
+                    gasPrice: gasPrice,
+                    gasLimit: gasLimit,
+                    nonce: nonce.toInt(),
+                  );
+                  
+                  print('✅ [TAJI FUNDING] Transaction signed and sent!');
+                  print('🔵 [TAJI FUNDING] Transaction hash: $signedHash');
+                  responseData['txHash'] = signedHash;
+                }
+              } catch (e) {
+                print('❌ [TAJI FUNDING] Error in transfer process');
+                print('❌ [TAJI FUNDING] Error type: ${e.runtimeType}');
+                print('❌ [TAJI FUNDING] Error message: $e');
+                rethrow;
+              }
+            }
+            
+            if (!mounted || !isModalOpen) return;
+            
+            print('✅ [TAJI FUNDING] Transfer completed successfully');
+            print('🔵 [TAJI FUNDING] Closing modal and refreshing data');
+            
+            // Mark modal as closed before popping
+            isModalOpen = false;
+            Navigator.of(context).pop();
+            _showSnack('Transfer successful');
+            _loadInitialData();
+            
+            print('🔵 [TAJI FUNDING] ========================================');
+          } catch (e) {
+            print('❌ [TAJI FUNDING] Transfer failed');
+            print('❌ [TAJI FUNDING] Error type: ${e.runtimeType}');
+            print('❌ [TAJI FUNDING] Error message: $e');
+            if (e is dio.DioException) {
+              print('❌ [TAJI FUNDING] DioException details:');
+              print('❌ [TAJI FUNDING]   Type: ${e.type}');
+              print('❌ [TAJI FUNDING]   Message: ${e.message}');
+              print('❌ [TAJI FUNDING]   Response: ${e.response?.data}');
+              print('❌ [TAJI FUNDING]   Status code: ${e.response?.statusCode}');
+            }
+            print('🔵 [TAJI FUNDING] ========================================');
+            
+            if (mounted && isModalOpen) {
+              setSheetState(() => submitting = false);
+              _showSnack(e.toString(), isError: true);
+            }
+          }
+        }
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 24,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                padding: const EdgeInsets.all(20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.send, color: Colors.amber),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Transfer Funds',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close, color: Colors.white54),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Select Currency', style: TextStyle(color: Colors.white.withOpacity(0.8))),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          _chip('USDT', currency == 'usdt', () => setSheetState(() => currency = 'usdt')),
+                          _chip('TAJI', currency == 'taji', () => setSheetState(() => currency = 'taji')),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: 'Recipient Email',
+                          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.1),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (value) {
+                          if (!isModalOpen) return;
+                          try {
+                            setSheetState(() {
+                              recipientName = null; // Clear name when typing
+                            });
+                            
+                            // Auto-validate when email looks complete (contains @ and .)
+                            if (value.contains('@') && value.contains('.') && value.length > 5) {
+                              // Small delay to ensure user finished typing
+                              Future.delayed(const Duration(milliseconds: 500), () {
+                                if (isModalOpen && mounted) {
+                                  try {
+                                    final currentEmail = emailController.text.trim();
+                                    if (currentEmail.contains('@') && currentEmail.contains('.') && currentEmail.length > 5) {
+                                      validateRecipient(setSheetState);
+                                    }
+                                  } catch (e) {
+                                    // Controller disposed, ignore
+                                  }
+                                }
+                              });
+                            }
+                          } catch (e) {
+                            // Ignore if modal is closed
+                          }
+                        },
+                        onTap: () {
+                          if (!isModalOpen) return;
+                          try {
+                            emailController.selection = TextSelection.fromPosition(
+                              TextPosition(offset: emailController.text.length),
+                            );
+                          } catch (e) {
+                            // Ignore if controller is disposed
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              recipientName ?? 'Recipient name will appear after validation',
+                              style: TextStyle(color: recipientName == null ? Colors.white38 : Colors.greenAccent),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => validateRecipient(setSheetState),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.amber,
+                            ),
+                            child: const Text('Validate'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: amountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Amount',
+                          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.1),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onTap: () {
+                          if (!isModalOpen) return;
+                          try {
+                            amountController.selection = TextSelection.fromPosition(
+                              TextPosition(offset: amountController.text.length),
+                            );
+                          } catch (e) {
+                            // Ignore if controller is disposed
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor: Colors.amber,
+                            foregroundColor: Colors.black,
+                          ),
+                          onPressed: submitting ? null : () => submitTransfer(setSheetState),
+                          child: Text(submitting ? 'Transferring...' : 'Transfer'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      // Mark modal as closed
+      isModalOpen = false;
+      // Dispose controllers when modal is closed - safely dispose
+      Future.delayed(const Duration(milliseconds: 100), () {
+        try {
+          amountController.dispose();
+        } catch (e) {
+          // Ignore disposal errors if already disposed
+        }
+        try {
+          emailController.dispose();
+        } catch (e) {
+          // Ignore disposal errors if already disposed
+        }
+      });
+    });
   }
 
   void _openConnectWalletSheet() {
+    final addressController = TextEditingController();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) {
-        final addressController = TextEditingController();
         bool submitting = false;
 
         return StatefulBuilder(
           builder: (context, setSheetState) {
             Future<void> submit() async {
-              final address = addressController.text.trim();
+              // Safely get address
+              String address = '';
+              try {
+                address = addressController.text.trim();
+              } catch (e) {
+                // Controller disposed, can't proceed
+                return;
+              }
+              
               print('[WALLET DEBUG] Connect wallet submit called');
               print('[WALLET DEBUG] Input address: $address');
               print('[WALLET DEBUG] Address length: ${address.length}');
@@ -1782,7 +2914,14 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
           },
         );
       },
-    );
+    ).whenComplete(() {
+      // Dispose controller when modal is closed - safely dispose
+      try {
+        addressController.dispose();
+      } catch (e) {
+        // Ignore disposal errors if already disposed
+      }
+    });
   }
 
   Widget _chip(String label, bool selected, VoidCallback onTap) {
@@ -1936,54 +3075,70 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
     }
   }
 
+
   void _showSnack(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    // Get the root navigator context to show snackbar above modals
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    // Use ScaffoldMessenger with root context to ensure it appears above modals
+    ScaffoldMessenger.of(rootNavigator.context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.redAccent : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 100, left: 16, right: 16),
+        duration: const Duration(seconds: 3),
+        elevation: 10,
       ),
     );
   }
 
-  Color _methodAccent(String? signature) {
-    switch (signature) {
-      case 'from-green-500 to-emerald-500':
-        return Colors.greenAccent;
-      case 'from-blue-500 to-cyan-500':
-        return Colors.cyanAccent;
-      case 'from-amber-500 to-orange-500':
-        return Colors.orangeAccent;
-      case 'from-purple-500 to-pink-500':
-        return Colors.purpleAccent;
+  Color _methodAccent(String key) {
+    switch (key) {
+      case 'lp':
+        return const Color(0xFFFFC107);
+      case 'mining':
+        return const Color(0xFF00BFA6);
+      case 'faucet':
+        return const Color(0xFFFF7043);
+      case 'stake':
+        return const Color(0xFF66BB6A);
+      case 'referral':
+        return const Color(0xFFFF5F6D);
       default:
         return Colors.amberAccent;
     }
   }
 
-  IconData _methodIcon(String? iconKey) {
-    switch (iconKey) {
-      case 'farming':
-        return Icons.savings_outlined;
-      case 'gifts':
-        return Icons.card_giftcard;
+  IconData _methodIcon(String key) {
+    switch (key) {
+      case 'lp':
+        return Icons.show_chart;
+      case 'mining':
+        return Icons.agriculture;
+      case 'faucet':
+        return Icons.water_drop_outlined;
+      case 'stake':
+        return Icons.lock_clock;
       case 'referral':
-        return Icons.group_add_outlined;
+        return Icons.groups_2_outlined;
       default:
-        return Icons.flash_on_outlined;
+        return Icons.auto_graph_outlined;
     }
   }
 
   IconData _historyIcon(String? type) {
     switch (type) {
-      case 'lp_rewards':
-        return Icons.auto_graph;
-      case 'referral_reward':
-        return Icons.group;
-      case 'mining_rewards':
-        return Icons.construction;
+      case 'deposit':
+        return Icons.download_outlined;
+      case 'withdrawal':
+        return Icons.upload_outlined;
+      case 'transfer':
+        return Icons.swap_horiz;
+      case 'funding':
+        return Icons.account_balance_wallet_outlined;
       default:
-        return Icons.payments_outlined;
+        return Icons.history;
     }
   }
 
@@ -2086,31 +3241,26 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-      child: AnimatedBuilder(
-        animation: _heroFade,
-        builder: (context, child) {
-          return Opacity(
-            opacity: _heroFade.value,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeroCard(),
-                const SizedBox(height: 20),
-                _buildWalletCards(),
-                const SizedBox(height: 20),
-                _buildQuickActions(),
-                if (_recentEarnings.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  _buildRecentEarnings(),
-                ],
-                const SizedBox(height: 24),
-                _buildTabs(),
-                const SizedBox(height: 16),
-                _activeTab == 'methods' ? _buildMethods() : _buildHistory(),
-              ],
-            ),
-          );
-        },
+      child: Opacity(
+        opacity: _heroOpacity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeroCard(),
+            const SizedBox(height: 20),
+            _buildWalletCards(),
+            const SizedBox(height: 20),
+            _buildQuickActions(),
+            if (_recentEarnings.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              _buildRecentEarnings(),
+            ],
+            const SizedBox(height: 24),
+            _buildTabs(),
+            const SizedBox(height: 16),
+            _activeTab == 'methods' ? _buildMethods() : _buildHistory(),
+          ],
+        ),
       ),
     );
   }
@@ -2360,7 +3510,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
         const SizedBox(width: 12),
         action('Convert', Icons.swap_horiz, _openConvertSheet),
         const SizedBox(width: 12),
-        action('History', Icons.history, () => setState(() => _activeTab = 'history')),
+        action('Transfer', Icons.send, _openTransferSheet),
       ],
     );
   }
@@ -2463,62 +3613,94 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
   }
 
   Widget _buildMethods() {
-    final methods = _earningCenter?['earning_methods'] as List<dynamic>? ?? [];
-    if (methods.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(20)),
-        child: const Text(
-          'Launch a video and earn from gifts, LP staking and more.\nNew methods land automatically once your wallet qualifies.',
-          style: TextStyle(color: Colors.white70),
-        ),
-      );
-    }
+    final features = [
+      {
+        'name': 'Tajify LP Staking',
+        'description':
+            'Stake TAJI & TAJISTAR to enhance Tajify liquidity and share 20% of all platform transaction fees.',
+        'earnings': '20% fee pool',
+        'status': 'Liquidity Boost',
+        'key': 'lp',
+      },
+      {
+        'name': 'Mining Farm',
+        'description': 'Buy farm plots (5,000 TAJISTAR/plot) and earn 110 TAJISTAR weekly for 50 weeks.',
+        'earnings': '110 TAJISTAR/week',
+        'status': '50-week cycle',
+        'key': 'mining',
+      },
+      {
+        'name': 'Faucet',
+        'description': 'Solve a captcha every hour and earn 1 TAJISTAR instantly.',
+        'earnings': '1 TAJISTAR/hour',
+        'status': 'Always on',
+        'key': 'faucet',
+      },
+      {
+        'name': 'Stake Farm',
+        'description': 'Stake TAJI for up to 90 days and enjoy 15% APY with flexible exits.',
+        'earnings': '15% APY',
+        'status': 'Max tenure 90 days',
+        'key': 'stake',
+      },
+      {
+        'name': 'Refer & Earn',
+        'description': 'Share your invite link and get 10 TAJISTAR for every friend who signs up.',
+        'earnings': '10 TAJISTAR/referral',
+        'status': 'Invite & grow',
+        'key': 'referral',
+      },
+    ];
 
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: methods.length,
+      itemCount: features.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final method = methods[index] as Map<String, dynamic>;
-        final color = _methodAccent(method['color']?.toString());
+        final feature = features[index];
+        final color = _methodAccent(feature['key'] as String);
         return Container(
-          decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(18)),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C1E),
+            borderRadius: BorderRadius.circular(18),
+          ),
           padding: const EdgeInsets.all(18),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                child: Icon(_methodIcon(method['icon']?.toString()), color: color),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(_methodIcon(feature['key'] as String), color: color, size: 26),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(method['name']?.toString() ?? 'Method', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
                     Text(
-                      method['description']?.toString() ?? '',
-                      style: const TextStyle(color: Colors.white54),
+                      feature['name'] as String,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(method['earnings']?.toString() ?? '--', style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                   Text(
-                    method['status']?.toString() ?? '',
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      (feature['description'] as String).length > 80
+                          ? '${(feature['description'] as String).substring(0, 80)}...'
+                          : feature['description'] as String,
+                      style: const TextStyle(color: Colors.white70, height: 1.3, fontSize: 12),
                   ),
                 ],
               ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
             ],
                           ),
                         );
@@ -2537,25 +3719,47 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C1E),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
           children: filters
               .map(
-                (filter) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(filter['label']!),
-                    selected: _historyFilter == filter['value'],
-                    onSelected: (_) => _fetchHistory(filter: filter['value']!),
-                    selectedColor: Colors.amber,
-                    labelStyle: TextStyle(
-                      color: _historyFilter == filter['value'] ? Colors.black : Colors.white,
-                      fontWeight: _historyFilter == filter['value'] ? FontWeight.bold : FontWeight.normal,
+                  (filter) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: GestureDetector(
+                        onTap: () => _fetchHistory(filter: filter['value']!),
+                        child: Container(
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: _historyFilter == filter['value']
+                                ? Colors.amber
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            filter['label']!,
+                            style: TextStyle(
+                              color: _historyFilter == filter['value']
+                                  ? Colors.black
+                                  : Colors.white70,
+                              fontWeight: _historyFilter == filter['value']
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                     ),
-                    backgroundColor: Colors.white.withOpacity(0.1),
+                          ),
+                        ),
+                      ),
                   ),
                 ),
               )
               .toList(),
+          ),
         ),
         const SizedBox(height: 16),
         if (_loadingHistory)
@@ -2565,7 +3769,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(20)),
             child: const Center(
-              child: Text('No earning history yet. Keep creating and gifting to start earning.', style: TextStyle(color: Colors.white54)),
+              child: Text('No history yet', style: TextStyle(color: Colors.white54)),
             ),
           )
         else
@@ -2578,6 +3782,12 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
               final entry = _earningHistory[index] as Map<String, dynamic>;
               final createdAt = entry['created_at']?.toString();
               final date = createdAt != null ? DateTime.tryParse(createdAt) : null;
+              final type = entry['transaction_type']?.toString() ?? 'transaction';
+              final description = entry['description']?.toString();
+              final amount = entry['amount']?.toString() ?? '';
+              final rawCurrency = entry['currency'];
+              final currency = rawCurrency == null ? '' : rawCurrency.toString().toUpperCase();
+              final status = entry['status']?.toString() ?? '';
               return Container(
                 decoration: BoxDecoration(color: const Color(0xFF1C1C1E), borderRadius: BorderRadius.circular(16)),
                 padding: const EdgeInsets.all(16),
@@ -2586,17 +3796,21 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)),
-                      child: Icon(_historyIcon(entry['type']?.toString()), color: Colors.amber),
+                      child: Icon(_historyIcon(type), color: Colors.amber),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(entry['method']?.toString() ?? 'Earning', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
                           Text(
-                            entry['description']?.toString() ?? '',
+                            type.toUpperCase(),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          if (description != null && description.isNotEmpty)
+                          Text(
+                              description,
                             style: const TextStyle(color: Colors.white54, fontSize: 12),
                           ),
                           if (date != null)
@@ -2608,9 +3822,19 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                       ),
                     ),
                     const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
                     Text(
-                      entry['amount']?.toString() ?? '',
+                          '$amount $currency',
                       style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          status.toUpperCase(),
+                          style: const TextStyle(color: Colors.white54, fontSize: 11),
+                        ),
+                      ],
             ),
           ],
         ),

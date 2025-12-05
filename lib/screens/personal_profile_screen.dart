@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
-import 'tube_player_screen.dart';
 
 class PersonalProfileScreen extends StatefulWidget {
   const PersonalProfileScreen({super.key});
@@ -432,6 +431,40 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     }
   }
 
+  void _openProfileMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.white),
+                title: const Text('Edit Profile', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _isEditing = true;
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleGoLive() {
+    context.push('/go-live');
+  }
+
   String _getUserInitial() {
     final name = _profile?['name']?.toString() ?? '';
     if (name.isEmpty) return '?';
@@ -571,6 +604,19 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
         ),
         actions: [
           if (!_isEditing)
+            Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.menu, color: Colors.white, size: 20),
+                    onPressed: _openProfileMenu,
+                  ),
+                ),
+                const SizedBox(width: 10),
             Container(
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
@@ -579,14 +625,22 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: IconButton(
-                icon: const Icon(Icons.edit, color: Colors.black, size: 20),
-                onPressed: () {
-                  setState(() {
-                    _isEditing = true;
-                  });
-                },
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                    onPressed: _handleGoLive,
+                    icon: const Icon(Icons.wifi_tethering, color: Colors.black, size: 16),
+                    label: const Text(
+                      'Go Live',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
               ),
+              ],
             )
           else
             Row(

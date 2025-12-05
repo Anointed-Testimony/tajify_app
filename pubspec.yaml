@@ -79,6 +79,12 @@ dependencies:
   
   # Rich text editor
   flutter_quill: ^11.5.0
+  
+  # Web3 and blockchain
+  web3dart: ^2.7.3
+  wallet_connect_v2: ^1.0.9
+  agora_rtc_engine: ^6.3.2
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

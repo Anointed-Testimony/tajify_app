@@ -24,6 +24,8 @@ import '../screens/tube_player_screen.dart';
 import '../screens/shorts_player_screen.dart';
 import '../screens/saved_posts_screen.dart';
 import '../screens/market_screen.dart';
+import '../screens/go_live_screen.dart';
+import '../screens/live_viewer_screen.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
@@ -203,6 +205,21 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) => const PersonalProfileScreen(),
+    ),
+    GoRoute(
+      path: '/go-live',
+      builder: (context, state) => const GoLiveScreen(),
+    ),
+    GoRoute(
+      path: '/live/:channelName',
+      builder: (context, state) {
+        final channelName = state.pathParameters['channelName'] ?? '';
+        final args = state.extra as Map<String, dynamic>?;
+        return LiveViewerScreen(
+          channelName: channelName,
+          sessionData: args?['sessionData'],
+        );
+      },
     ),
     GoRoute(
       path: '/user/:username',

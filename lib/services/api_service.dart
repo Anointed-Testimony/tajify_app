@@ -488,8 +488,112 @@ class ApiService {
     );
   }
 
+  Future<Response> getWalletTransactions({
+    String? currency,
+    String? type,
+    int limit = 50,
+  }) async {
+    final params = <String, dynamic>{'limit': limit};
+    if (currency != null && currency.isNotEmpty) {
+      params['currency'] = currency;
+    }
+    if (type != null && type.isNotEmpty) {
+      params['type'] = type;
+    }
+    return await get('/wallet/transactions', queryParameters: params);
+  }
+
   Future<Response> getTajstarsBalance() async {
     return await get('/wallet/tajstars-balance');
+  }
+
+  Future<Response> generateLiveToken({
+    String? channelName,
+    int? ttl,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (channelName != null && channelName.isNotEmpty) {
+      payload['channel_name'] = channelName;
+    }
+    if (ttl != null) {
+      payload['ttl'] = ttl;
+    }
+
+    return await post(
+      '/live/token',
+      data: payload.isEmpty ? {} : payload,
+    );
+  }
+
+  Future<Response> startLiveSession({
+    required String channelName,
+    required int uid,
+    String? title,
+    String? description,
+  }) async {
+    return await post(
+      '/live/session/start',
+      data: {
+        'channel_name': channelName,
+        'uid': uid,
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
+      },
+    );
+  }
+
+  Future<Response> endLiveSession({
+    required String channelName,
+  }) async {
+    return await post(
+      '/live/session/end',
+      data: {
+        'channel_name': channelName,
+      },
+    );
+  }
+
+  Future<Response> getActiveLiveSessions({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    return await get(
+      '/live/sessions',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+  }
+
+  Future<Response> getLiveSession(String channelName) async {
+    return await get('/live/session/$channelName');
+  }
+
+  Future<Response> generateViewerToken({
+    required String channelName,
+    int? uid,
+  }) async {
+    return await post(
+      '/live/viewer/token',
+      data: {
+        'channel_name': channelName,
+        if (uid != null) 'uid': uid,
+      },
+    );
+  }
+
+  Future<Response> updateViewerCount({
+    required String channelName,
+    required bool increment,
+  }) async {
+    return await post(
+      '/live/viewer/count',
+      data: {
+        'channel_name': channelName,
+        'increment': increment,
+      },
+    );
   }
 
   Future<Response> initializeWalletFunding({
@@ -1306,5 +1410,43 @@ class ApiService {
     return await put('/communities/$uuid/messages/$messageId', data: {
       'content': content,
     });
+  }
+
+  // Transfer methods
+  Future<Response> validateRecipientEmail(String email) async {
+    return await post('/send-usdt/validate-email', data: {
+      'email': email,
+    });
+  }
+
+  Future<Response> sendUsdt({
+    required String recipientEmail,
+    required double amount,
+  }) async {
+    return await post('/send-usdt/send', data: {
+      'recipient_email': recipientEmail,
+      'amount': amount,
+    });
+  }
+
+  Future<Response> sendTaji({
+    required String recipientEmail,
+    required String recipientWallet,
+    required double amount,
+    required String senderWallet,
+    String? privateKey,
+  }) async {
+    final data = {
+      'recipient_email': recipientEmail,
+      'recipient_wallet': recipientWallet,
+      'amount': amount,
+      'sender_wallet': senderWallet,
+    };
+    
+    if (privateKey != null && privateKey.isNotEmpty) {
+      data['private_key'] = privateKey;
+    }
+    
+    return await post('/send-taji/send', data: data);
   }
 } 
