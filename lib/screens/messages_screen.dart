@@ -794,7 +794,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -816,7 +816,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           : _loading
               ? const Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                   ),
                 )
               : !FirebaseService.isInitialized
@@ -858,7 +858,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               icon: const Icon(Icons.refresh),
                               label: const Text('Retry Connection'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber,
+                                backgroundColor: Color(0xFFB875FB),
                                 foregroundColor: Colors.black,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
@@ -880,7 +880,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             Icon(
                               Icons.info_outline,
                               size: 64,
-                              color: Colors.amber[400],
+                              color: Color(0xFFB875FB),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -921,7 +921,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               icon: const Icon(Icons.open_in_new),
                               label: const Text('Create Indexes'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber,
+                                backgroundColor: Color(0xFFB875FB),
                                 foregroundColor: Colors.black,
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
@@ -939,7 +939,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                               },
                               child: const Text(
                                 'Retry After Creating Indexes',
-                                style: TextStyle(color: Colors.amber),
+                                style: TextStyle(color: Color(0xFFB875FB)),
                               ),
                             ),
                           ],
@@ -974,7 +974,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             icon: const Icon(Icons.add),
                             label: const Text('Start New Chat'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
+                              backgroundColor: Color(0xFFB875FB),
                               foregroundColor: Colors.black,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
@@ -1038,11 +1038,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         gradient: const LinearGradient(
-                                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                          colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.amber.withOpacity(0.3),
+                                            color: Color(0xFFB875FB).withOpacity(0.3),
                                             blurRadius: 8,
                                             spreadRadius: 0,
                                           ),
@@ -1079,7 +1079,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                           width: 14,
                                           height: 14,
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFFFB800),
+                                            color: const Color(0xFFB875FB),
                                             shape: BoxShape.circle,
                                             border: Border.all(
                                               color: const Color(0xFF0F0F0F),
@@ -1087,7 +1087,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                                             ),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.amber.withOpacity(0.5),
+                                                color: Color(0xFFB875FB).withOpacity(0.5),
                                                 blurRadius: 4,
                                                 spreadRadius: 0,
                                               ),
@@ -1212,11 +1212,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                  colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.amber.withOpacity(0.3),
+                    color: Color(0xFFB875FB).withOpacity(0.3),
                     blurRadius: 8,
                     spreadRadius: 0,
                   ),
@@ -1338,7 +1338,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           decoration: BoxDecoration(
                             gradient: isMe
                                 ? const LinearGradient(
-                                    colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                    colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   )
@@ -1353,7 +1353,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             boxShadow: [
                               BoxShadow(
                                 color: isMe
-                                    ? Colors.amber.withOpacity(0.2)
+                                    ? Color(0xFFB875FB).withOpacity(0.2)
                                     : Colors.black.withOpacity(0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
@@ -1562,7 +1562,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         gradient: (_sendingMessage || !_canSendMessage)
                             ? null
                             : const LinearGradient(
-                                colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                               ),
                         color: (_sendingMessage || !_canSendMessage)
                             ? Colors.grey[700]
@@ -1572,7 +1572,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             ? null
                             : [
                                 BoxShadow(
-                                  color: Colors.amber.withOpacity(0.3),
+                                  color: Color(0xFFB875FB).withOpacity(0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -1614,10 +1614,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.2),
+                            color: Color(0xFFB875FB).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.attach_file, color: Colors.amber, size: 18),
+                          child: const Icon(Icons.attach_file, color: Color(0xFFB875FB), size: 18),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -1686,7 +1686,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(24),
-                borderSide: const BorderSide(color: Colors.amber),
+                borderSide: const BorderSide(color: Color(0xFFB875FB)),
               ),
               filled: true,
               fillColor: Colors.grey[900],
@@ -1711,7 +1711,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           child: _searching
               ? const Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                   ),
                 )
               : _searchResults.isEmpty && _searchController.text.isNotEmpty
@@ -1764,7 +1764,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             return ListTile(
                               leading: CircleAvatar(
                                 radius: 28,
-                                backgroundColor: Colors.amber,
+                                backgroundColor: Color(0xFFB875FB),
                                 backgroundImage: avatar != null && avatar.isNotEmpty 
                                     ? NetworkImage(avatar) 
                                     : null,

@@ -453,6 +453,60 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                   });
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.auto_awesome, color: Colors.white),
+                title: const Text('AI Studio', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  // TODO: Navigate to AI Studio when route is available
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('AI Studio coming soon'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.red),
+                title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      title: const Text('Logout', style: TextStyle(color: Colors.white)),
+                      content: const Text('Are you sure you want to logout?', style: TextStyle(color: Colors.white70)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Logout', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+                  
+                  if (confirmed == true) {
+                    try {
+                      await _apiService.clearAllData();
+                      await _storageService.clearAllData();
+                      if (mounted) {
+                        context.go('/login');
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        await _storageService.clearAllData();
+                        context.go('/login');
+                      }
+                    }
+                  }
+                },
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -621,7 +675,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                  colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -655,7 +709,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                 Container(
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                      colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -684,7 +738,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
               ),
             )
           : _profile == null
@@ -702,7 +756,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                       ElevatedButton(
                         onPressed: _loadProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFB800),
+                          backgroundColor: const Color(0xFFB875FB),
                           foregroundColor: Colors.black,
                         ),
                         child: const Text('Retry'),
@@ -716,7 +770,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     await _loadStats();
                     await _loadPosts();
                   },
-                  color: const Color(0xFFFFB800),
+                  color: const Color(0xFFB875FB),
                   child: CustomScrollView(
                     controller: _scrollController,
                     slivers: [
@@ -744,11 +798,11 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       gradient: const LinearGradient(
-                                        colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                        colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.amber.withOpacity(0.4),
+                                          color: Color(0xFFB875FB).withOpacity(0.4),
                                           blurRadius: 20,
                                           spreadRadius: 0,
                                         ),
@@ -787,7 +841,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                       child: Container(
                                         decoration: BoxDecoration(
                                           gradient: const LinearGradient(
-                                            colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                            colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                           ),
                                           shape: BoxShape.circle,
                                           border: Border.all(
@@ -984,7 +1038,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                   child: Padding(
                                     padding: EdgeInsets.all(32.0),
                                     child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                                     ),
                                   ),
                                 ),
@@ -1041,7 +1095,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                                 padding: EdgeInsets.all(20),
                                                 child: Center(
                                                   child: CircularProgressIndicator(
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                                                   ),
                                                 ),
                                               );
@@ -1154,7 +1208,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             color: Colors.white.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFFFFB800), size: 24),
+          child: Icon(icon, color: const Color(0xFFB875FB), size: 24),
         ),
         const SizedBox(height: 8),
         Text(
@@ -1232,7 +1286,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(
-                color: Color(0xFFFFB800),
+                color: Color(0xFFB875FB),
                 width: 2,
               ),
             ),

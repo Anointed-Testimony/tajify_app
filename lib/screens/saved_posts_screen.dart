@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import '../services/api_service.dart';
+import '../widgets/custom_bottom_nav.dart';
 import 'tube_player_screen.dart';
 import 'shorts_player_screen.dart';
 
@@ -170,7 +171,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
               // Orange sub-tabs
               Container(
                 width: double.infinity,
-                color: const Color(0xFFFFD6B0),
+                color: const Color(0xFFB875FB),
                 padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -190,7 +191,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                   child: Padding(
                     padding: EdgeInsets.all(32.0),
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                     ),
                   ),
                 )
@@ -218,7 +219,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
                         ElevatedButton(
                           onPressed: _refreshPosts,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
+                            backgroundColor: Color(0xFFB875FB),
                             foregroundColor: Colors.black,
                           ),
                           child: const Text('Retry'),
@@ -279,56 +280,7 @@ class _SavedPostsScreenState extends State<SavedPostsScreen> {
           ),
         ),
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: FloatingActionButton(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          elevation: 4,
-          onPressed: () {
-            context.go('/home');
-          },
-          child: const Icon(Icons.home, size: 32),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF232323),
-        selectedItemColor: Colors.amber,
-        unselectedItemColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people_alt_outlined),
-            label: 'Connect',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.live_tv_outlined),
-            label: 'Channel',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.storefront_outlined),
-            label: 'Market',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.auto_graph_outlined),
-            label: 'Earn',
-          ),
-        ],
-        currentIndex: 1, // Channel tab is active
-        onTap: (int index) {
-          if (index == 0) {
-            context.go('/connect');
-          } else if (index == 1) {
-            context.go('/channel');
-          } else if (index == 2) {
-            context.go('/market');
-          } else if (index == 3) {
-            context.go('/earn');
-          }
-        },
-      ),
+      bottomNavigationBar: const CustomBottomNav(currentIndex: 0),
     );
   }
 
@@ -457,7 +409,7 @@ class _VideoPreviewCardState extends State<_VideoPreviewCard> {
                         color: Colors.grey[800],
                         child: const Center(
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                             strokeWidth: 2,
                           ),
                         ),

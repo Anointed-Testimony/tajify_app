@@ -36,6 +36,11 @@ class AuthProvider extends ChangeNotifier {
     _initializeAuth();
   }
 
+  bool _isUnauthorizedError(Object e) {
+    final msg = e.toString().toLowerCase();
+    return msg.contains('unauthorized') || msg.contains('401');
+  }
+
   // Initialize authentication state
   Future<void> _initializeAuth() async {
     try {
@@ -43,17 +48,37 @@ class AuthProvider extends ChangeNotifier {
       
       // Check if token exists
       final token = await _storageService.getAuthToken();
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         _token = token;
-        
-        // Verify token by fetching user profile
+
+        // Hydrate cached user immediately to avoid booting the user to login on
+        // slow/offline starts. We'll refresh the profile in the background.
+        final cachedUser = await _storageService.getUserData();
+        if (cachedUser != null) {
+          try {
+            _user = UserModel.fromJson(cachedUser);
+            setStatus(AuthStatus.authenticated);
+          } catch (_) {
+            // Ignore cache parse errors; we'll fetch from API below.
+          }
+        }
+
+        // Verify/refresh token by fetching user profile (best-effort)
         await _fetchUserProfile();
       } else {
+        // No token, user is not authenticated
+        await _clearAuthData();
         setStatus(AuthStatus.unauthenticated);
       }
     } catch (e) {
-      _errorMessage = e.toString();
-      setStatus(AuthStatus.error);
+      print('Auth initialization error: $e');
+      // On init error (e.g. offline), do NOT destroy stored session.
+      // If we already have a cached user, keep them logged in.
+      if (_token != null && _user != null) {
+        setStatus(AuthStatus.authenticated);
+      } else {
+        setStatus(AuthStatus.unauthenticated);
+      }
     }
   }
 
@@ -80,18 +105,32 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _authService.getProfile();
       
-      if (response['success']) {
+      if (response['success'] == true && response['data'] != null) {
         _user = UserModel.fromJson(response['data']);
+        // Keep cache fresh
+        await _storageService.saveUserData(response['data']);
         setStatus(AuthStatus.authenticated);
       } else {
         // Token is invalid, clear auth data
+        print('Token validation failed: ${response['message']}');
         await _clearAuthData();
         setStatus(AuthStatus.unauthenticated);
       }
     } catch (e) {
-      // Token is invalid or network error
-      await _clearAuthData();
-      setStatus(AuthStatus.unauthenticated);
+      // If it's truly unauthorized, clear session. Otherwise treat as transient
+      // (offline / timeout) and keep any cached session.
+      print('Error fetching user profile: $e');
+      if (_isUnauthorizedError(e)) {
+        await _clearAuthData();
+        setStatus(AuthStatus.unauthenticated);
+      } else {
+        if (_token != null && _user != null) {
+          setStatus(AuthStatus.authenticated);
+        } else {
+          // Don't delete the token, but mark unauthenticated for now.
+          setStatus(AuthStatus.unauthenticated);
+        }
+      }
     }
   }
 
@@ -226,7 +265,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Register user
-  Future<bool> register(Map<String, dynamic> userData) async {
+  Future<Map<String, dynamic>> register(Map<String, dynamic> userData) async {
     try {
       setStatus(AuthStatus.loading);
       clearError();
@@ -240,21 +279,48 @@ class AuthProvider extends ChangeNotifier {
         password: userData['password'],
         passwordConfirmation: userData['passwordConfirmation'],
         profilePicture: userData['profilePicture'],
+        ref: userData['ref'],
       );
       
       if (response['success']) {
         // Registration successful, but user needs to verify OTP
         setStatus(AuthStatus.unauthenticated);
-        return true;
+        // Extract user_id from response - user data is nested in 'data' object
+        final userId = response['data']?['user']?['id'];
+        print('Extracted User ID from response: $userId');
+        print('Full response structure: $response');
+        return {
+          'success': true,
+          'userId': userId,
+        };
       } else {
         _errorMessage = response['message'] ?? 'Registration failed';
         setStatus(AuthStatus.error);
-        return false;
+        return {
+          'success': false,
+          'userId': null,
+        };
       }
     } catch (e) {
-      _errorMessage = e.toString();
+      // Extract the actual error message from the exception
+      String errorMessage = 'Registration failed';
+      if (e is Exception) {
+        final message = e.toString();
+        // Remove "Exception: " prefix if present
+        if (message.startsWith('Exception: ')) {
+          errorMessage = message.substring(11);
+        } else {
+          errorMessage = message;
+        }
+      } else {
+        errorMessage = e.toString();
+      }
+      _errorMessage = errorMessage;
       setStatus(AuthStatus.error);
-      return false;
+      return {
+        'success': false,
+        'userId': null,
+      };
     }
   }
 
@@ -358,15 +424,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Reset password
-  Future<bool> resetPassword(String email, String? phone, String otp, String password, String passwordConfirmation) async {
+  Future<bool> resetPassword(int userId, String code, String type, String password, String passwordConfirmation) async {
     try {
       setStatus(AuthStatus.loading);
       clearError();
 
       final response = await _authService.resetPassword(
-        email: email,
-        phone: phone,
-        otp: otp,
+        userId: userId,
+        code: code,
+        type: type,
         password: password,
         passwordConfirmation: passwordConfirmation,
       );
@@ -375,12 +441,40 @@ class AuthProvider extends ChangeNotifier {
         setStatus(AuthStatus.unauthenticated);
         return true;
       } else {
-        _errorMessage = response['message'] ?? 'Password reset failed';
+        // Extract error message from response, checking for errors object first
+        String errorMessage = 'Password reset failed';
+        if (response['errors'] != null && response['errors'] is Map) {
+          final errors = response['errors'] as Map;
+          if (errors.isNotEmpty) {
+            final firstError = errors.values.first;
+            if (firstError is List && firstError.isNotEmpty) {
+              errorMessage = firstError.first.toString();
+            } else if (firstError is String) {
+              errorMessage = firstError;
+            }
+          }
+        } else {
+          errorMessage = response['message'] ?? 'Password reset failed';
+        }
+        _errorMessage = errorMessage;
         setStatus(AuthStatus.error);
         return false;
       }
     } catch (e) {
-      _errorMessage = e.toString();
+      // Extract the actual error message from the exception
+      String errorMessage = 'Password reset failed';
+      if (e is Exception) {
+        final message = e.toString();
+        // Remove "Exception: " prefix if present
+        if (message.startsWith('Exception: ')) {
+          errorMessage = message.substring(11);
+        } else {
+          errorMessage = message;
+        }
+      } else {
+        errorMessage = e.toString();
+      }
+      _errorMessage = errorMessage;
       setStatus(AuthStatus.error);
       return false;
     }

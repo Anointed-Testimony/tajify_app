@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import '../screens/splash_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/login_screen.dart';
@@ -26,51 +24,48 @@ import '../screens/saved_posts_screen.dart';
 import '../screens/market_screen.dart';
 import '../screens/go_live_screen.dart';
 import '../screens/live_viewer_screen.dart';
+import '../screens/reset_password_screen.dart';
 
-final GoRouter appRouter = GoRouter(
+GoRouter createRouter(AuthProvider authProvider) => GoRouter(
   initialLocation: '/',
   debugLogDiagnostics: true,
+  refreshListenable: authProvider,
   redirect: (context, state) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    print('=== ROUTER DEBUG ===');
-    print('Current location: ${state.matchedLocation}');
-    print('Auth status: ${authProvider.status}');
-    print('Is authenticated: ${authProvider.isAuthenticated}');
-    print('User: ${authProvider.user?.name}');
-    
-    // If still initializing, stay on splash
-    if (authProvider.status == AuthStatus.initial) {
-      print('Still initializing, staying on current route');
-      return null;
-    }
-    
-    // If loading, stay on current route
-    if (authProvider.status == AuthStatus.loading) {
-      print('Loading, staying on current route');
-      return null;
-    }
-    
-    final isAuthenticated = authProvider.isAuthenticated;
+    // Define auth routes that should always be accessible
     final isAuthRoute = state.matchedLocation == '/login' || 
                        state.matchedLocation == '/signup' || 
-                       state.matchedLocation == '/forgot-password';
+                       state.matchedLocation == '/forgot-password' ||
+                       state.matchedLocation == '/otp-verification' ||
+                       state.matchedLocation == '/reset-password';
     
-    print('Is auth route: $isAuthRoute');
+    // Allow splash and onboarding to load without auth check
+    if (state.matchedLocation == '/' || state.matchedLocation == '/onboarding') {
+      return null;
+    }
     
-    // If authenticated and trying to access auth routes, redirect to home
-    if (isAuthenticated && isAuthRoute) {
-      print('Authenticated user on auth route, redirecting to /home');
-      return '/home';
+    // Always allow auth routes to be accessible (including when there's an error)
+    if (isAuthRoute) {
+      // Only redirect away from auth routes if user is authenticated
+      if (authProvider.isAuthenticated) {
+        return '/home';
+      }
+      // Otherwise, stay on the auth route (even if there's an error)
+      return null;
+    }
+    
+    // If still initializing or loading, redirect protected routes to splash
+    if (authProvider.status == AuthStatus.initial || authProvider.status == AuthStatus.loading) {
+      if (state.matchedLocation != '/') {
+        return '/';
+      }
+      return null;
     }
     
     // If not authenticated and trying to access protected routes, redirect to login
-    if (!isAuthenticated && !isAuthRoute && state.matchedLocation != '/') {
-      print('Not authenticated on protected route, redirecting to /login');
+    if (!authProvider.isAuthenticated && state.matchedLocation != '/') {
       return '/login';
     }
     
-    print('No redirect needed');
     return null;
   },
   routes: [
@@ -110,53 +105,12 @@ final GoRouter appRouter = GoRouter(
       path: '/reset-password',
       builder: (context, state) {
         final args = state.extra as Map<String, dynamic>?;
-        return Scaffold(
-          backgroundColor: const Color(0xFF1A1A1A),
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => context.pop(),
-            ),
-          ),
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Reset Password',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontFamily: 'Ebrima',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Email: ${args?['email'] ?? 'N/A'}',
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                  Text(
-                    'Phone: ${args?['phone'] ?? 'N/A'}',
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                  Text(
-                    'OTP: ${args?['otp'] ?? 'N/A'}',
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                  const SizedBox(height: 30),
-                  Text(
-                    'Reset Password Screen - To be implemented',
-                    style: TextStyle(color: Colors.orange),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        return ResetPasswordScreen(
+          email: args?['email'],
+          phone: args?['phone'],
+          otp: args?['otp'],
+          userId: args?['userId'],
+          type: args?['type'],
         );
       },
     ),
@@ -172,7 +126,11 @@ final GoRouter appRouter = GoRouter(
       path: '/channel',
       builder: (context, state) {
         final args = state.extra as Map<String, dynamic>?;
-        return ChannelScreen(openCreateModalOnStart: args?['openCreateModalOnStart'] == true);
+        return ChannelScreen(
+          openCreateModalOnStart: args?['openCreateModalOnStart'] == true,
+          initialCategory: args?['initialCategory'] as String?,
+          initialAudioTrack: args?['initialAudioTrack'] as Map<String, dynamic>?,
+        );
       },
     ),
     GoRoute(
@@ -237,7 +195,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/create',
-      builder: (context, state) => const CreateContentScreen(),
+      builder: (context, state) {
+        final args = state.extra as Map<String, dynamic>?;
+        return CreateContentScreen(initialCategory: args?['type']);
+      },
     ),
     GoRoute(
       path: '/tube-player',
@@ -247,9 +208,13 @@ final GoRouter appRouter = GoRouter(
           // Fallback to home if invalid args
           return const HomeScreen();
         }
+        final loadMoreVideos = args['loadMoreVideos'];
         return TubePlayerScreen(
           videos: args['videos'] as List<Map<String, dynamic>>,
           initialIndex: args['initialIndex'] as int,
+          loadMoreVideos: loadMoreVideos != null 
+              ? loadMoreVideos as Future<List<Map<String, dynamic>>> Function(int)
+              : null,
         );
       },
     ),

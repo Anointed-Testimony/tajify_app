@@ -418,7 +418,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           ),
           child: const Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
             ),
           ),
         ),
@@ -531,7 +531,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                                 errorBuilder: (context, error, stackTrace) {
                                   return CircleAvatar(
                                     radius: 50,
-                                    backgroundColor: const Color(0xFFFFB800),
+                                    backgroundColor: const Color(0xFFB875FB),
                                     child: Text(
                                       _getUserInitial(_profile),
                                       style: const TextStyle(
@@ -546,7 +546,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             )
                           : CircleAvatar(
                               radius: 50,
-                              backgroundColor: const Color(0xFFFFB800),
+                              backgroundColor: const Color(0xFFB875FB),
                               child: Text(
                                 _getUserInitial(_profile),
                                 style: const TextStyle(
@@ -636,7 +636,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                                 gradient: _isFollowing
                                     ? null
                                     : const LinearGradient(
-                                        colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                        colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                       ),
                                 color: _isFollowing ? Colors.white.withOpacity(0.08) : null,
                                 borderRadius: BorderRadius.circular(12),
@@ -749,7 +749,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         child: Padding(
                           padding: EdgeInsets.all(40),
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                           ),
                         ),
                       ),
@@ -797,7 +797,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                                       padding: EdgeInsets.all(20),
                                       child: Center(
                                         child: CircularProgressIndicator(
-                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                                         ),
                                       ),
                                     );
@@ -1019,7 +1019,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           decoration: BoxDecoration(
             gradient: isActive
                 ? const LinearGradient(
-                    colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                    colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                   )
                 : null,
             color: isActive ? null : Colors.transparent,

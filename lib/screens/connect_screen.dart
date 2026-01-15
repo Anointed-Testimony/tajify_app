@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/tajify_top_bar.dart';
+import '../widgets/custom_bottom_nav.dart';
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key});
@@ -31,6 +35,10 @@ class _ConnectScreenState extends State<ConnectScreen> {
   // Communities
   List<Map<String, dynamic>> _communities = [];
   bool _loadingCommunities = false;
+  bool _loadingMoreCommunities = false;
+  int _communitiesPage = 1;
+  bool _communitiesHasMore = true;
+  final ScrollController _communitiesScrollController = ScrollController();
   List<Map<String, dynamic>> _myOwnedCommunities = [];
   List<Map<String, dynamic>> _myJoinedCommunities = [];
   bool _loadingMyCommunities = false;
@@ -55,10 +63,20 @@ class _ConnectScreenState extends State<ConnectScreen> {
   Map<int, bool> _followLoading = {};
   Map<String, bool> _communityMemberships = {};
   Map<String, bool> _joiningCommunity = {};
+  
+  // Create community state
+  final TextEditingController _communityNameController = TextEditingController();
+  final TextEditingController _communityDescriptionController = TextEditingController();
+  File? _communityImage;
+  String _joinPolicy = 'open';
+  String _chatPolicy = 'everyone';
+  bool _creatingCommunity = false;
+  String? _createCommunityError;
 
   @override
   void initState() {
     super.initState();
+    _communitiesScrollController.addListener(_onCommunitiesScroll);
     _loadCurrentUserId();
     _loadUserProfile();
     _loadNotificationUnreadCount();
@@ -69,6 +87,15 @@ class _ConnectScreenState extends State<ConnectScreen> {
       }
     });
     _initializeFirebaseAndLoadMessagesCount();
+  }
+
+  void _onCommunitiesScroll() {
+    if (_communitiesScrollController.position.pixels >=
+        _communitiesScrollController.position.maxScrollExtent * 0.8) {
+      if (!_loadingMoreCommunities && _communitiesHasMore && _activeTab == 0) {
+        _loadMoreCommunities();
+      }
+    }
   }
 
   Future<void> _loadCurrentUserId() async {
@@ -92,13 +119,29 @@ class _ConnectScreenState extends State<ConnectScreen> {
     }
   }
 
-  Future<void> _loadCommunities() async {
+  Future<void> _loadCommunities({bool loadMore = false}) async {
+    if (loadMore) {
+      if (_loadingMoreCommunities || !_communitiesHasMore) return;
+    } else {
+      if (_loadingCommunities) return;
+      _communitiesPage = 1;
+      _communitiesHasMore = true;
+    }
+    
     setState(() {
-      _loadingCommunities = true;
+      if (loadMore) {
+        _loadingMoreCommunities = true;
+      } else {
+        _loadingCommunities = true;
+      }
     });
     
     try {
-      final response = await _apiService.get('/communities');
+      final page = loadMore ? _communitiesPage + 1 : 1;
+      final response = await _apiService.get('/communities', queryParameters: {
+        'page': page,
+        'limit': 20,
+      });
       if (response.statusCode == 200 && response.data['success'] == true) {
         final data = response.data['data'];
         List<dynamic> communitiesList = [];
@@ -109,11 +152,19 @@ class _ConnectScreenState extends State<ConnectScreen> {
           communitiesList = data;
         }
         
+        final newCommunities = communitiesList
+            .whereType<Map<String, dynamic>>()
+            .map((community) => Map<String, dynamic>.from(community))
+            .toList();
+        
         setState(() {
-          _communities = communitiesList
-              .whereType<Map<String, dynamic>>()
-              .map((community) => Map<String, dynamic>.from(community))
-              .toList();
+          if (loadMore) {
+            _communities.addAll(newCommunities);
+          } else {
+            _communities = newCommunities;
+          }
+          _communitiesPage = page;
+          _communitiesHasMore = newCommunities.length >= 20;
         });
         
         await _checkCommunityMemberships();
@@ -122,9 +173,17 @@ class _ConnectScreenState extends State<ConnectScreen> {
       print('[CONNECT] Error loading communities: $e');
     } finally {
       setState(() {
-        _loadingCommunities = false;
+        if (loadMore) {
+          _loadingMoreCommunities = false;
+        } else {
+          _loadingCommunities = false;
+        }
       });
     }
+  }
+  
+  Future<void> _loadMoreCommunities() async {
+    await _loadCommunities(loadMore: true);
   }
 
   Future<void> _loadMyOwnedAndJoinedCommunities() async {
@@ -133,42 +192,75 @@ class _ConnectScreenState extends State<ConnectScreen> {
     });
     
     try {
+      final userId = _currentUserId;
+      final owned = <Map<String, dynamic>>[];
+      final joined = <Map<String, dynamic>>[];
+      
       // Get owned communities
-      final ownedResponse = await _apiService.get('/communities/mine');
-      if (ownedResponse.statusCode == 200 && ownedResponse.data['success'] == true) {
-        final data = ownedResponse.data['data'];
-        List<dynamic> communitiesList = [];
-        
-        if (data is Map<String, dynamic> && data['data'] is List) {
-          communitiesList = data['data'] as List<dynamic>;
-        } else if (data is List) {
-          communitiesList = data;
+      try {
+        final ownedResponse = await _apiService.get('/communities/mine');
+        if (ownedResponse.statusCode == 200 && ownedResponse.data['success'] == true) {
+          final data = ownedResponse.data['data'];
+          List<dynamic> communitiesList = [];
+          
+          if (data is Map<String, dynamic> && data['data'] is List) {
+            communitiesList = data['data'] as List<dynamic>;
+          } else if (data is List) {
+            communitiesList = data;
+          }
+          
+          final ownedCommunities = communitiesList
+              .whereType<Map<String, dynamic>>()
+              .map((community) => Map<String, dynamic>.from(community))
+              .toList();
+          
+          owned.addAll(ownedCommunities);
         }
-        
-        final allMyCommunities = communitiesList
-            .whereType<Map<String, dynamic>>()
-            .map((community) => Map<String, dynamic>.from(community))
-            .toList();
-        
-        // Separate owned and joined
-        final owned = <Map<String, dynamic>>[];
-        final joined = <Map<String, dynamic>>[];
-        
-        for (var community in allMyCommunities) {
-          final userId = _currentUserId;
-          final ownerId = community['user_id'] ?? community['owner_id'];
-          if (userId != null && ownerId != null && ownerId == userId) {
-            owned.add(community);
-          } else {
-            joined.add(community);
+      } catch (e) {
+        print('[CONNECT] Error loading owned communities: $e');
+      }
+      
+      // Get joined communities (memberships)
+      try {
+        final membershipsResponse = await _apiService.get('/communities/memberships');
+        if (membershipsResponse.statusCode == 200 && membershipsResponse.data['success'] == true) {
+          final data = membershipsResponse.data['data'];
+          List<dynamic> communitiesList = [];
+          
+          if (data is Map<String, dynamic> && data['data'] is List) {
+            communitiesList = data['data'] as List<dynamic>;
+          } else if (data is List) {
+            communitiesList = data;
+          }
+          
+          final membershipCommunities = communitiesList
+              .whereType<Map<String, dynamic>>()
+              .map((community) => Map<String, dynamic>.from(community))
+              .toList();
+          
+          // Filter out communities that are already in owned list (to avoid duplicates)
+          final ownedUuids = owned.map((c) => c['uuid']?.toString() ?? c['id']?.toString()).toSet();
+          
+          for (var community in membershipCommunities) {
+            final communityUuid = community['uuid']?.toString() ?? community['id']?.toString();
+            final ownerId = community['owner_id'] ?? community['user_id'];
+            
+            // Only add if not already owned and user is not the owner
+            if (communityUuid != null && !ownedUuids.contains(communityUuid)) {
+              if (userId != null && ownerId != null && ownerId != userId) {
+                joined.add(community);
+              }
+            }
           }
         }
-        
-        setState(() {
-          _myOwnedCommunities = owned;
-          _myJoinedCommunities = joined;
-        });
+      } catch (e) {
+        print('[CONNECT] Error loading memberships: $e');
       }
+      
+      setState(() {
+        _myOwnedCommunities = owned;
+        _myJoinedCommunities = joined;
+      });
     } catch (e) {
       print('[CONNECT] Error loading my communities: $e');
     } finally {
@@ -505,12 +597,14 @@ class _ConnectScreenState extends State<ConnectScreen> {
         final profile = response.data['data'];
         if (mounted) {
           setState(() {
-            _currentUserProfile = profile;
-            final name = profile?['name']?.toString();
+            // Handle nested user object
+            final user = profile?['user'] ?? profile;
+            _currentUserProfile = user ?? profile;
+            final name = user?['name']?.toString();
             if (name != null && name.isNotEmpty) {
               _currentUserInitial = name[0].toUpperCase();
             }
-            _currentUserAvatar = profile?['profile_avatar']?.toString();
+            _currentUserAvatar = user?['profile_avatar']?.toString();
           });
         }
         return;
@@ -566,15 +660,37 @@ class _ConnectScreenState extends State<ConnectScreen> {
     
     try {
       final response = await _apiService.getActiveLiveSessions();
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        final data = response.data['data'];
+      print('[CONNECT] Live sessions response status: ${response.statusCode}');
+      print('[CONNECT] Live sessions response data: ${response.data}');
+      
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        
+        // Handle different response formats
         List<dynamic> sessionsList = [];
         
-        if (data is List) {
-          sessionsList = data;
-        } else if (data is Map<String, dynamic> && data['data'] is List) {
-          sessionsList = data['data'] as List<dynamic>;
+        if (responseData['success'] == true) {
+          final data = responseData['data'];
+          
+          if (data is List) {
+            sessionsList = data;
+          } else if (data is Map<String, dynamic>) {
+            // Check if data contains a nested 'data' array
+            if (data['data'] is List) {
+              sessionsList = data['data'] as List<dynamic>;
+            } else if (data['sessions'] is List) {
+              sessionsList = data['sessions'] as List<dynamic>;
+            }
+          }
+        } else if (responseData is List) {
+          // Response might be a direct list
+          sessionsList = responseData;
+        } else if (responseData is Map<String, dynamic> && responseData['data'] is List) {
+          // Response data might be directly in 'data' without 'success' field
+          sessionsList = responseData['data'] as List<dynamic>;
         }
+        
+        print('[CONNECT] Parsed ${sessionsList.length} live sessions');
         
         setState(() {
           _liveSessions = sessionsList
@@ -582,9 +698,19 @@ class _ConnectScreenState extends State<ConnectScreen> {
               .map((session) => Map<String, dynamic>.from(session))
               .toList();
         });
+      } else {
+        print('[CONNECT] Live sessions API returned non-200 status: ${response.statusCode}');
+        print('[CONNECT] Response: ${response.data}');
+        setState(() {
+          _liveSessions = [];
+        });
       }
     } catch (e) {
       print('[CONNECT] Error loading live sessions: $e');
+      print('[CONNECT] Error stack trace: ${StackTrace.current}');
+      setState(() {
+        _liveSessions = [];
+      });
     } finally {
       setState(() {
         _loadingLiveSessions = false;
@@ -609,6 +735,9 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
   @override
   void dispose() {
+    _communitiesScrollController.dispose();
+    _communityNameController.dispose();
+    _communityDescriptionController.dispose();
     _notificationTimer?.cancel();
     _liveSessionsTimer?.cancel();
     _messagesCountSubscription?.cancel();
@@ -655,7 +784,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFFFB800), width: 2),
+                        borderSide: const BorderSide(color: Color(0xFFB875FB), width: 2),
                       ),
                     ),
                     onSubmitted: (value) {
@@ -684,7 +813,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                     Container(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                          colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -708,46 +837,17 @@ class _ConnectScreenState extends State<ConnectScreen> {
   }
 
   Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      backgroundColor: const Color(0xFF0F0F0F),
-      selectedItemColor: Colors.amber,
-      unselectedItemColor: Colors.white,
-      type: BottomNavigationBarType.fixed,
-      currentIndex: 0,
-      onTap: (index) {
-        if (index == 1) {
-          context.go('/channel');
-        } else if (index == 2) {
-          context.go('/market');
-        } else if (index == 3) {
-          context.go('/earn');
-        }
-      },
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'Connect'),
-        BottomNavigationBarItem(icon: Icon(Icons.live_tv_outlined), label: 'Channel'),
-        BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), label: 'Market'),
-        BottomNavigationBarItem(icon: Icon(Icons.auto_graph_outlined), label: 'Earn'),
-        ],
-    );
+    return const CustomBottomNav(currentIndex: 1);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: FloatingActionButton(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          onPressed: () => context.go('/home'),
-          child: const Icon(Icons.home, size: 30),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: _buildBottomNav(),
-      body: SafeArea(
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: const Color(0xFF0F0F0F),
+          bottomNavigationBar: _buildBottomNav(),
+          body: SafeArea(
         child: Column(
         children: [
             TajifyTopBar(
@@ -802,24 +902,17 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 children: [
                   // Plus icon
                   GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Create community feature coming soon'),
-                          backgroundColor: Color(0xFFFFB800),
-                        ),
-                      );
-                    },
+                    onTap: _openCreateCommunityDialog,
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                          colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                         ),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.amber.withOpacity(0.4),
+                            color: Color(0xFFB875FB).withOpacity(0.4),
                             blurRadius: 12,
                             spreadRadius: 0,
                           ),
@@ -840,12 +933,12 @@ class _ConnectScreenState extends State<ConnectScreen> {
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                          colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                         ),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.amber.withOpacity(0.4),
+                            color: Color(0xFFB875FB).withOpacity(0.4),
                             blurRadius: 12,
                             spreadRadius: 0,
                           ),
@@ -877,7 +970,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   ]);
                 }
               },
-              color: const Color(0xFFFFB800),
+              color: const Color(0xFFB875FB),
               child: _activeTab == 0 
                   ? _buildCommunitiesContent() 
                   : _activeTab == 1 
@@ -888,6 +981,8 @@ class _ConnectScreenState extends State<ConnectScreen> {
         ],
         ),
       ),
+        ),
+      ],
     );
   }
 
@@ -912,7 +1007,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
       decoration: BoxDecoration(
           gradient: isActive
               ? const LinearGradient(
-                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                  colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                 )
               : null,
           color: isActive ? null : Colors.transparent,
@@ -920,7 +1015,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.amber.withOpacity(0.4),
+                    color: Color(0xFFB875FB).withOpacity(0.4),
                     blurRadius: 12,
                     spreadRadius: 0,
                   ),
@@ -945,7 +1040,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
     if (_loadingCommunities) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
         ),
       );
     }
@@ -962,6 +1057,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
     }
 
     return SingleChildScrollView(
+      controller: _communitiesScrollController,
       padding: const EdgeInsets.all(16),
       child: GridView.builder(
         shrinkWrap: true,
@@ -970,10 +1066,18 @@ class _ConnectScreenState extends State<ConnectScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.75,
+          childAspectRatio: 0.85,
         ),
-        itemCount: displayCommunities.length,
+        itemCount: displayCommunities.length + (_loadingMoreCommunities ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index == displayCommunities.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
           return _buildCommunityCard(displayCommunities[index]);
         },
       ),
@@ -982,12 +1086,9 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
   Widget _buildCommunityCard(Map<String, dynamic> community) {
     final uuid = community['uuid']?.toString() ?? '';
-    final isMember = uuid.isNotEmpty && (_communityMemberships[uuid] ?? false);
-    final isJoining = uuid.isNotEmpty && (_joiningCommunity[uuid] ?? false);
     final image = _getCommunityImage(community);
     final name = community['name']?.toString() ?? 'Unknown Community';
     final description = community['description']?.toString() ?? '';
-    final joinPolicy = community['join_policy']?.toString() ?? 'open';
     
     return GestureDetector(
       onTap: () {
@@ -1026,7 +1127,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
           Stack(
             children: [
               Container(
-                height: 100,
+                height: 120,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -1034,202 +1135,209 @@ class _ConnectScreenState extends State<ConnectScreen> {
                       ? const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                          colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                         )
                       : null,
                 ),
                 child: image != null && image.isNotEmpty
                     ? ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Image.network(
-                          image,
-              fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
-                                ),
+                        child: CachedNetworkImage(
+                          imageUrl: image,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          memCacheWidth: 300,
+                          memCacheHeight: 180,
+                          maxWidthDiskCache: 300,
+                          maxHeightDiskCache: 180,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[800],
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                               ),
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.group, color: Colors.white, size: 32),
-                                ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[800],
+                            child: CachedNetworkImage(
+                              imageUrl: 'https://img.freepik.com/free-vector/illustration-business-people_53876-5879.jpg?t=st=1764965940~exp=1764969540~hmac=b29e4fad4cf13ff431807916b6246dafa82c19f1a1997efb9042a5fb5b1571b9&w=1480',
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              memCacheWidth: 300,
+                              memCacheHeight: 180,
+                              maxWidthDiskCache: 300,
+                              maxHeightDiskCache: 180,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[800],
                               ),
-                            );
-                          },
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ),
                         ),
                       )
-                    : Center(
+                    : ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                         child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
-                            shape: BoxShape.circle,
+                          color: Colors.grey[800],
+                          child: CachedNetworkImage(
+                            imageUrl: 'https://img.freepik.com/free-vector/illustration-business-people_53876-5879.jpg?t=st=1764965940~exp=1764969540~hmac=b29e4fad4cf13ff431807916b6246dafa82c19f1a1997efb9042a5fb5b1571b9&w=1480',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                            memCacheWidth: 300,
+                            memCacheHeight: 180,
+                            maxWidthDiskCache: 300,
+                            maxHeightDiskCache: 180,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[800],
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[800],
+                            ),
                           ),
-                          child: const Icon(Icons.group, color: Colors.white, size: 32),
                         ),
                       ),
               ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
-                    ),
+            ],
+          ),
+          // Community Info
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.1,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                children: [
-                      Icon(
-                        joinPolicy == 'open' ? Icons.public : Icons.lock,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 2),
                   Text(
-                        joinPolicy == 'open' ? 'Open' : 'Private',
-                    style: const TextStyle(
-                      color: Colors.white,
-                          fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    description,
+                    style: TextStyle(
+                      color: Colors.grey[300],
+                      fontSize: 10,
+                      height: 1.1,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ],
-      ),
-          
-          // Community Info
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-                  Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.2,
-                        ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                      if (description.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          description,
-                          style: TextStyle(
-                            color: Colors.grey[300],
-                            fontSize: 12,
-                            height: 1.3,
-                          ),
-                          maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                      ],
-                    ],
-                  ),
-                  if (!isMember && uuid.isNotEmpty)
-                    SizedBox(
-                      width: double.infinity,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.amber.withOpacity(0.3),
-                              blurRadius: 8,
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: isJoining ? null : () => _joinCommunity(uuid),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              child: isJoining
-                                  ? const Center(
-                                      child: SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                                        ),
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Join',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                        ),
-                      ),
-                    ),
-                      ),
-                    )
-                  else if (isMember)
-                    Container(
-                  width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Text(
-                        'Member',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ),
       ),
+    );
+  }
+
+  Future<void> _pickCommunityImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _communityImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      print('[CONNECT] Error picking image: $e');
+    }
+  }
+
+  Future<void> _createCommunity() async {
+    if (_communityNameController.text.trim().isEmpty) {
+      setState(() {
+        _createCommunityError = 'Community name is required';
+      });
+      return;
+    }
+
+    setState(() {
+      _creatingCommunity = true;
+      _createCommunityError = null;
+    });
+
+    try {
+      final response = await _apiService.createCommunity(
+        name: _communityNameController.text.trim(),
+        description: _communityDescriptionController.text.trim().isNotEmpty
+            ? _communityDescriptionController.text.trim()
+            : null,
+        image: _communityImage,
+        joinPolicy: _joinPolicy,
+        chatPolicy: _chatPolicy,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.data['success'] == true) {
+          // Reset form
+          _communityNameController.clear();
+          _communityDescriptionController.clear();
+          // Close dialog
+          Navigator.of(context).pop();
+          
+          // Reset form
+          setState(() {
+            _communityImage = null;
+            _joinPolicy = 'open';
+            _chatPolicy = 'everyone';
+          });
+
+          // Reload communities
+          await _loadCommunities();
+          await _loadMyOwnedAndJoinedCommunities();
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Community created successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } else {
+          setState(() {
+            _createCommunityError = response.data['message'] ?? 'Failed to create community';
+          });
+        }
+      } else {
+        setState(() {
+          _createCommunityError = 'Failed to create community';
+        });
+      }
+    } catch (e) {
+      print('[CONNECT] Error creating community: $e');
+      setState(() {
+        _createCommunityError = 'Error: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        _creatingCommunity = false;
+      });
+    }
+  }
+
+  void _openCreateCommunityDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _buildCreateCommunityDialog(),
     );
   }
 
@@ -1286,7 +1394,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
               child: _loadingMyCommunities
                   ? const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                       ),
                     )
                   : SingleChildScrollView(
@@ -1302,7 +1410,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
-                                      colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                      colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -1431,7 +1539,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isOwned 
-                ? const Color(0xFFFFB800).withOpacity(0.3)
+                ? const Color(0xFFB875FB).withOpacity(0.3)
                 : Colors.white.withOpacity(0.15),
             width: 1.5,
           ),
@@ -1448,25 +1556,70 @@ class _ConnectScreenState extends State<ConnectScreen> {
                     ? const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                        colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                       )
                     : null,
               ),
               child: image != null && image.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        image,
+                      child: CachedNetworkImage(
+                        imageUrl: image,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(
-                            child: Icon(Icons.group, color: Colors.white, size: 24),
-                          );
-                        },
+                        width: 50,
+                        height: 50,
+                        memCacheWidth: 100,
+                        memCacheHeight: 100,
+                        maxWidthDiskCache: 100,
+                        maxHeightDiskCache: 100,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[800],
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[800],
+                          child: CachedNetworkImage(
+                            imageUrl: 'https://img.freepik.com/free-vector/illustration-business-people_53876-5879.jpg?t=st=1764965940~exp=1764969540~hmac=b29e4fad4cf13ff431807916b6246dafa82c19f1a1997efb9042a5fb5b1571b9&w=1480',
+                            fit: BoxFit.cover,
+                            width: 50,
+                            height: 50,
+                            memCacheWidth: 100,
+                            memCacheHeight: 100,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[800],
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ),
                       ),
                     )
-                  : const Center(
-                      child: Icon(Icons.group, color: Colors.black, size: 24),
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: 'https://img.freepik.com/free-vector/illustration-business-people_53876-5879.jpg?t=st=1764965940~exp=1764969540~hmac=b29e4fad4cf13ff431807916b6246dafa82c19f1a1997efb9042a5fb5b1571b9&w=1480',
+                        fit: BoxFit.cover,
+                        width: 50,
+                        height: 50,
+                        memCacheWidth: 100,
+                        memCacheHeight: 100,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[800],
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[800],
+                        ),
+                      ),
                     ),
             ),
             const SizedBox(width: 12),
@@ -1560,7 +1713,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
     if (_loadingLiveSessions) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
         ),
       );
     }
@@ -1585,7 +1738,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
     final channelName = session['channel_name']?.toString() ?? '';
     final user = session['user'] as Map<String, dynamic>?;
     final userName = user?['name']?.toString() ?? user?['username']?.toString() ?? 'Unknown';
-    final userAvatar = user?['avatar']?.toString() ?? user?['profile_avatar']?.toString();
+    final userAvatar = user?['profile_avatar']?.toString() ?? user?['avatar']?.toString();
     final viewerCount = session['viewer_count'] ?? 0;
     final title = session['title']?.toString();
     final startedAt = session['started_at']?.toString();
@@ -1722,7 +1875,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                             )
                           : CircleAvatar(
                               radius: 28,
-                              backgroundColor: const Color(0xFFFFB800),
+                              backgroundColor: const Color(0xFFB875FB),
                               child: Text(
                                 userName.isNotEmpty ? userName[0].toUpperCase() : '?',
                                 style: const TextStyle(
@@ -1804,12 +1957,12 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   Container(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                        colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                       ),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.amber.withOpacity(0.3),
+                          color: Color(0xFFB875FB).withOpacity(0.3),
                           blurRadius: 8,
                           spreadRadius: 0,
                         ),
@@ -1854,13 +2007,511 @@ class _ConnectScreenState extends State<ConnectScreen> {
     );
   }
 
+  Widget _buildCreateCommunityDialog() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                const Text(
+                  'Create Community',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white70),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    setState(() {
+                      _createCommunityError = null;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          // Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Step 1: Basic Info
+                  const Text(
+                    'Step 1: Basic Information',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Community Name
+                  TextField(
+                    controller: _communityNameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Community Name',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintText: 'Enter community name...',
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFB875FB), width: 2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Description
+                  TextField(
+                    controller: _communityDescriptionController,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Description',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintText: 'Describe your community...',
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFB875FB), width: 2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Community Image
+                  const Text(
+                    'Community Image',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _pickCommunityImage,
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                      ),
+                      child: _communityImage != null
+                          ? Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    _communityImage!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _communityImage = null;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                        size: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.add_photo_alternate,
+                                    color: Colors.white70,
+                                    size: 32,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Add Image',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // Step 2: Settings
+                  const Text(
+                    'Step 2: Community Settings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Join Policy
+                  const Text(
+                    'Join Policy',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _joinPolicy = 'open';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: _joinPolicy == 'open'
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                                    )
+                                  : null,
+                              color: _joinPolicy == 'open' ? null : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _joinPolicy == 'open'
+                                    ? Colors.transparent
+                                    : Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Open',
+                                  style: TextStyle(
+                                    color: _joinPolicy == 'open' ? Colors.white : Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Anyone can join',
+                                  style: TextStyle(
+                                    color: _joinPolicy == 'open' ? Colors.white70 : Colors.white54,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _joinPolicy = 'admin_approval';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: _joinPolicy == 'admin_approval'
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
+                                    )
+                                  : null,
+                              color: _joinPolicy == 'admin_approval' ? null : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _joinPolicy == 'admin_approval'
+                                    ? Colors.transparent
+                                    : Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Approval',
+                                  style: TextStyle(
+                                    color: _joinPolicy == 'admin_approval' ? Colors.white : Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Admin approval',
+                                  style: TextStyle(
+                                    color: _joinPolicy == 'admin_approval' ? Colors.white70 : Colors.white54,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Chat Policy
+                  const Text(
+                    'Chat Policy',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _chatPolicy = 'everyone';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: _chatPolicy == 'everyone'
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                                    )
+                                  : null,
+                              color: _chatPolicy == 'everyone' ? null : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _chatPolicy == 'everyone'
+                                    ? Colors.transparent
+                                    : Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Everyone',
+                                  style: TextStyle(
+                                    color: _chatPolicy == 'everyone' ? Colors.white : Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'All members can chat',
+                                  style: TextStyle(
+                                    color: _chatPolicy == 'everyone' ? Colors.white70 : Colors.white54,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _chatPolicy = 'admin_only';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: _chatPolicy == 'admin_only'
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                                    )
+                                  : null,
+                              color: _chatPolicy == 'admin_only' ? null : Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _chatPolicy == 'admin_only'
+                                    ? Colors.transparent
+                                    : Colors.white.withOpacity(0.1),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Admin Only',
+                                  style: TextStyle(
+                                    color: _chatPolicy == 'admin_only' ? Colors.white : Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Only admins can chat',
+                                  style: TextStyle(
+                                    color: _chatPolicy == 'admin_only' ? Colors.white70 : Colors.white54,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Error Message
+                  if (_createCommunityError != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.withOpacity(0.2)),
+                      ),
+                      child: Text(
+                        _createCommunityError!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+          // Create Button
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Colors.white.withOpacity(0.1)),
+              ),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _creatingCommunity || _communityNameController.text.trim().isEmpty
+                    ? null
+                    : _createCommunity,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFB875FB),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  disabledBackgroundColor: Colors.grey[800],
+                ),
+                child: _creatingCommunity
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                        ),
+                      )
+                    : const Text(
+                        'Create Community',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPeopleContent() {
     final isLoading = _searchQuery.isNotEmpty ? _searching : _loading;
     
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
         ),
       );
     }
@@ -1912,7 +2563,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 )
               : CircleAvatar(
                   radius: 24,
-                  backgroundColor: const Color(0xFFFFB800),
+                  backgroundColor: const Color(0xFFB875FB),
                   child: Text(
                     _getUserInitial(user),
                     style: const TextStyle(
@@ -1965,7 +2616,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 gradient: isFollowing
                     ? null
                     : const LinearGradient(
-                        colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                        colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                       ),
                 color: isFollowing ? Colors.white.withOpacity(0.08) : null,
                           borderRadius: BorderRadius.circular(8),

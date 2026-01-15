@@ -146,8 +146,45 @@ class ApiService {
         final responseData = error.response?.data;
         
         if (responseData is Map<String, dynamic>) {
-          final message = responseData['message'] ?? 'An error occurred';
-          return Exception(message);
+          String? message;
+          
+          // For 422 validation errors, prioritize extracting detailed error messages from errors object
+          if (statusCode == 422) {
+            // Check for errors object (Laravel validation format) - prioritize this over generic message
+            if (responseData['errors'] != null && responseData['errors'] is Map) {
+              final errors = responseData['errors'] as Map;
+              // Get the first error message from the first field
+              if (errors.isNotEmpty) {
+                final firstError = errors.values.first;
+                if (firstError is List && firstError.isNotEmpty) {
+                  message = firstError.first.toString();
+                } else if (firstError is String) {
+                  message = firstError;
+                }
+              }
+            }
+            // Check for data.errors (alternative format)
+            if (message == null && responseData['data'] != null && responseData['data'] is Map) {
+              final data = responseData['data'] as Map;
+              if (data['errors'] != null && data['errors'] is Map) {
+                final errors = data['errors'] as Map;
+                if (errors.isNotEmpty) {
+                  final firstError = errors.values.first;
+                  if (firstError is List && firstError.isNotEmpty) {
+                    message = firstError.first.toString();
+                  } else if (firstError is String) {
+                    message = firstError;
+                  }
+                }
+              }
+            }
+          }
+          
+          // If no detailed error found, use the generic message
+          message ??= responseData['message'];
+          
+          // Use the extracted message or fallback
+          return Exception(message ?? 'An error occurred');
         }
         
         switch (statusCode) {
@@ -319,6 +356,10 @@ class ApiService {
 
   Future<Response> getTubePrimePosts({int? page, int? limit}) async {
     return await getPosts(postType: 'tube_prime', page: page, limit: limit);
+  }
+
+  Future<Response> getAudioPosts({int? page, int? limit}) async {
+    return await getPosts(postType: 'audio', page: page, limit: limit);
   }
 
   Future<Response> getBlogPosts({int? page, int? limit}) async {
@@ -1236,6 +1277,40 @@ class ApiService {
     return await post('/notifications/mark-all-read');
   }
 
+  // Mining Farm methods
+  Future<Response> getMiningFarmInfo() async {
+    return await get('/crypto/mining-farm-info');
+  }
+
+  Future<Response> purchaseMiningPlots({
+    required int plots,
+    required double tajistarAmount,
+    required String transactionHash,
+  }) async {
+    return await post('/crypto/purchase-mining-plots', data: {
+      'plots': plots,
+      'tajistar_amount': tajistarAmount,
+      'transaction_hash': transactionHash,
+    });
+  }
+
+  // Referral methods
+  Future<Response> getReferralLink() async {
+    return await get('/referral/link');
+  }
+
+  Future<Response> getReferralStats() async {
+    return await get('/referral/stats');
+  }
+
+  Future<Response> claimMiningRewards() async {
+    return await post('/crypto/claim-mining-rewards');
+  }
+
+  Future<Response> stopMining() async {
+    return await post('/crypto/stop-mining');
+  }
+
   Future<Response> deleteNotification(int notificationId) async {
     // Backend uses DELETE method but expects notification_id in request body
     try {
@@ -1336,6 +1411,20 @@ class ApiService {
     return await get('/profile/stats');
   }
 
+  Future<Response> getTopCreators({int? limit}) async {
+    final queryParams = <String, dynamic>{};
+    if (limit != null) queryParams['limit'] = limit;
+    return await get('/stats/top-creators', queryParameters: queryParams);
+  }
+
+  Future<Response> getTrendingPosts({int? page, int? limit, String? timeframe}) async {
+    final queryParams = <String, dynamic>{};
+    if (page != null) queryParams['page'] = page;
+    if (limit != null) queryParams['limit'] = limit;
+    if (timeframe != null) queryParams['timeframe'] = timeframe;
+    return await get('/posts/trending', queryParameters: queryParams);
+  }
+
   Future<Response> getUserProfile(int userId) async {
     return await get('/users/$userId');
   }
@@ -1353,7 +1442,44 @@ class ApiService {
     return await get('/communities/$uuid/messages');
   }
 
+  Future<Response> createCommunity({
+    required String name,
+    String? description,
+    File? image,
+    String joinPolicy = 'open',
+    String chatPolicy = 'everyone',
+  }) async {
+    String? imageUrl;
+    
+    // Upload image first if provided
+    if (image != null) {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(image.path),
+        'media_type': 'image',
+      });
+      final uploadResponse = await postFormData('/upload/media', formData);
+      if (uploadResponse.statusCode == 200 && uploadResponse.data['success'] == true) {
+        imageUrl = uploadResponse.data['data']?['file_path']?.toString();
+      }
+    }
+    
+    // Create community with JSON payload
+    final data = {
+      'name': name,
+      'type': 'public',
+      'join_policy': joinPolicy,
+      'chat_policy': chatPolicy,
+      if (description != null && description.isNotEmpty) 'description': description,
+      if (imageUrl != null) 'image_url': imageUrl,
+    };
+    
+    return await post('/communities', data: data);
+  }
+
   Future<Response> sendCommunityMessage(String uuid, {String? content, File? media}) async {
+    String? mediaUrl;
+    
+    // If media is provided, upload it first (like web version does)
     if (media != null) {
       // Determine media type from file extension
       String? mediaType;
@@ -1370,17 +1496,20 @@ class ApiService {
         mediaType = 'file';
       }
       
-      final formData = FormData.fromMap({
-        if (content != null && content.isNotEmpty) 'content': content,
-        'media': await MultipartFile.fromFile(media.path),
-        'media_type': mediaType,
-      });
-      return await postFormData('/communities/$uuid/messages', formData);
-    } else {
-      return await post('/communities/$uuid/messages', data: {
-        if (content != null && content.isNotEmpty) 'content': content,
-      });
+      // Upload media first
+      final uploadResponse = await uploadMedia(media, mediaType);
+      if (uploadResponse.statusCode == 200 && uploadResponse.data['success'] == true) {
+        mediaUrl = uploadResponse.data['data']?['file_path']?.toString();
+      } else {
+        throw Exception('Failed to upload media: ${uploadResponse.data['message'] ?? 'Unknown error'}');
+      }
     }
+    
+    // Send message with media_url (backend expects media_url as URL string, not file upload)
+    return await post('/communities/$uuid/messages', data: {
+      if (content != null && content.isNotEmpty) 'content': content,
+      if (mediaUrl != null) 'media_url': mediaUrl,
+    });
   }
 
   Future<Response> leaveCommunity(String uuid) async {

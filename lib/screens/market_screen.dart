@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/tajify_top_bar.dart';
+import '../widgets/custom_bottom_nav.dart';
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
@@ -104,12 +105,14 @@ class _MarketScreenState extends State<MarketScreen> {
         final profile = response.data['data'];
         if (mounted) {
           setState(() {
-            _currentUserProfile = profile;
-            final name = profile?['name']?.toString();
+            // Handle nested user object
+            final user = profile?['user'] ?? profile;
+            _currentUserProfile = user ?? profile;
+            final name = user?['name']?.toString();
             if (name != null && name.isNotEmpty) {
               _currentUserInitial = name[0].toUpperCase();
             }
-            _currentUserAvatar = profile?['profile_avatar']?.toString();
+            _currentUserAvatar = user?['profile_avatar']?.toString();
           });
         }
         return;
@@ -379,7 +382,7 @@ class _MarketScreenState extends State<MarketScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.amber),
+                borderSide: const BorderSide(color: Color(0xFFB875FB)),
               ),
             ),
             onSubmitted: (value) {
@@ -401,7 +404,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 _applySearch(controller.text);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
+                backgroundColor: Color(0xFFB875FB),
                 foregroundColor: Colors.black,
               ),
               child: const Text('Search'),
@@ -459,6 +462,56 @@ class _MarketScreenState extends State<MarketScreen> {
                   _fetchMarketItems(reset: true);
                 },
               ),
+              if (_availableTags.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                const Text(
+                  'Tags',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChoiceChip(
+                      selected: _selectedTag == null,
+                      onSelected: (_) {
+                        _applyTag(null);
+                        Navigator.of(context).pop();
+                      },
+                      label: const Text('All tags'),
+                      selectedColor: const Color(0xFFB875FB),
+                      backgroundColor: const Color(0xFF1D1D1D),
+                      labelStyle: TextStyle(
+                        color: _selectedTag == null ? Colors.black : Colors.white,
+                        fontWeight: _selectedTag == null ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    ),
+                    ..._availableTags.map((tag) => ChoiceChip(
+                      selected: _selectedTag == tag,
+                      onSelected: (_) {
+                        _applyTag(tag);
+                        Navigator.of(context).pop();
+                      },
+                      label: Text(tag),
+                      selectedColor: const Color(0xFFB875FB),
+                      backgroundColor: const Color(0xFF1D1D1D),
+                      labelStyle: TextStyle(
+                        color: _selectedTag == tag ? Colors.black : Colors.white,
+                        fontWeight: _selectedTag == tag ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    )),
+                  ],
+                ),
+              ],
             ],
           ),
         );
@@ -473,11 +526,11 @@ class _MarketScreenState extends State<MarketScreen> {
       title: Text(
         label,
         style: TextStyle(
-          color: selected ? Colors.amber : Colors.white70,
+          color: selected ? Color(0xFFB875FB) : Colors.white70,
           fontWeight: selected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
-      trailing: selected ? const Icon(Icons.check_circle, color: Colors.amber) : null,
+      trailing: selected ? const Icon(Icons.check_circle, color: Color(0xFFB875FB)) : null,
     );
   }
 
@@ -748,7 +801,7 @@ class _MarketScreenState extends State<MarketScreen> {
                       const SizedBox(height: 16),
                       SwitchListTile.adaptive(
                         value: isPaid,
-                        activeColor: Colors.amber,
+                        activeColor: Color(0xFFB875FB),
                         title: const Text('Paid listing', style: TextStyle(color: Colors.white)),
                         onChanged: submitting
                             ? null
@@ -791,7 +844,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         child: ElevatedButton(
                           onPressed: submitting ? null : submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber,
+                            backgroundColor: Color(0xFFB875FB),
                             foregroundColor: Colors.black,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -825,7 +878,7 @@ class _MarketScreenState extends State<MarketScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.amber),
+        borderSide: const BorderSide(color: Color(0xFFB875FB)),
       ),
     );
   }
@@ -888,7 +941,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           ),
                           trailing: Text(
                             item['is_paid'] == true ? 'Paid' : 'Free',
-                            style: TextStyle(color: item['is_paid'] == true ? Colors.amber : Colors.greenAccent),
+                            style: TextStyle(color: item['is_paid'] == true ? Color(0xFFB875FB) : Colors.greenAccent),
                           ),
                         );
                       },
@@ -961,7 +1014,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
                                     gradient: const LinearGradient(
-                                      colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                      colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                     ),
                                   ),
                                   child: const Center(
@@ -990,7 +1043,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                              colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                             ),
                           ),
                           child: const Center(
@@ -1069,7 +1122,7 @@ class _MarketScreenState extends State<MarketScreen> {
                           _showSnack('Thanks for your interest!');
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.amber,
+                          backgroundColor: Color(0xFFB875FB),
                           foregroundColor: Colors.black,
                         ),
                         child: Text(
@@ -1135,7 +1188,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 Text(category['label'] ?? ''),
               ],
             ),
-            selectedColor: Colors.amber,
+            selectedColor: Color(0xFFB875FB),
             backgroundColor: const Color(0xFF1D1D1D),
             labelStyle: TextStyle(
               color: isActive ? Colors.black : Colors.white,
@@ -1175,7 +1228,7 @@ class _MarketScreenState extends State<MarketScreen> {
                       },
                     ),
                   IconButton(
-                    icon: Icon(Icons.filter_alt_outlined, color: _isPaidFilter == null ? Colors.white.withOpacity(0.7) : Colors.amber),
+                    icon: Icon(Icons.filter_alt_outlined, color: _isPaidFilter == null ? Colors.white.withOpacity(0.7) : Color(0xFFB875FB)),
                     onPressed: _showFilterSheet,
                   ),
                 ],
@@ -1190,7 +1243,7 @@ class _MarketScreenState extends State<MarketScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: Colors.amber),
+                borderSide: const BorderSide(color: Color(0xFFB875FB)),
               ),
             ),
             onSubmitted: _applySearch,
@@ -1205,7 +1258,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 icon: const Icon(Icons.add),
                 label: const Text('List an Item'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
+                  backgroundColor: Color(0xFFB875FB),
                   foregroundColor: Colors.black,
                 ),
               ),
@@ -1226,39 +1279,8 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   Widget _buildTagFilters() {
-    if (_availableTags.isEmpty) return const SizedBox.shrink();
-    final tags = ['all', ..._availableTags];
-    return SizedBox(
-      height: 56,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        scrollDirection: Axis.horizontal,
-        itemBuilder: (context, index) {
-          final tag = tags[index];
-          final isActive = _selectedTag == null && tag == 'all' || _selectedTag == tag;
-          return ChoiceChip(
-            selected: isActive,
-            onSelected: (_) => _applyTag(tag == 'all' ? null : tag),
-            label: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(tag == 'all' ? 'All tags' : tag),
-            ),
-            selectedColor: Colors.amber,
-            backgroundColor: const Color(0xFF1D1D1D),
-            labelStyle: TextStyle(
-              color: isActive ? Colors.black : Colors.white,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-          );
-        },
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemCount: tags.length,
-      ),
-    );
+    // Tags are now in the filter box, so return empty
+    return const SizedBox.shrink();
   }
 
   Widget _buildContent() {
@@ -1268,7 +1290,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
     if (_loadingItems && _marketItems.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.amber)),
+        child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB))),
       );
     }
 
@@ -1299,7 +1321,7 @@ class _MarketScreenState extends State<MarketScreen> {
 
     return RefreshIndicator(
       onRefresh: _refresh,
-      color: Colors.amber,
+      color: Color(0xFFB875FB),
       child: GridView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
@@ -1313,7 +1335,7 @@ class _MarketScreenState extends State<MarketScreen> {
         itemBuilder: (context, index) {
           if (index >= _displayItems.length) {
             return const Center(
-              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.amber)),
+              child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB))),
             );
           }
           final item = _displayItems[index];
@@ -1334,7 +1356,7 @@ class _MarketScreenState extends State<MarketScreen> {
             height: 100,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(colors: [Color(0xFFFFB800), Color(0xFFFF8C00)]),
+              gradient: LinearGradient(colors: [Color(0xFFB875FB), Color(0xFFB875FB)]),
             ),
             child: const Icon(Icons.verified_user, color: Colors.white, size: 50),
           ),
@@ -1353,7 +1375,7 @@ class _MarketScreenState extends State<MarketScreen> {
           ElevatedButton(
             onPressed: () => context.go('/profile'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
+              backgroundColor: Color(0xFFB875FB),
               foregroundColor: Colors.black,
             ),
             child: const Text('Upgrade account'),
@@ -1397,7 +1419,7 @@ class _MarketScreenState extends State<MarketScreen> {
                     : Container(
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                            colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                           ),
                         ),
                         child: Center(
@@ -1450,7 +1472,7 @@ class _MarketScreenState extends State<MarketScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: item['is_paid'] == true ? Colors.amber : Colors.greenAccent,
+                                  color: item['is_paid'] == true ? Color(0xFFB875FB) : Colors.greenAccent,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -1526,44 +1548,13 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      backgroundColor: const Color(0xFF0F0F0F),
-      selectedItemColor: Colors.amber,
-      unselectedItemColor: Colors.white,
-      type: BottomNavigationBarType.fixed,
-      currentIndex: 2,
-      onTap: (index) {
-        if (index == 0) {
-          context.go('/connect');
-        } else if (index == 1) {
-          context.go('/channel');
-        } else if (index == 3) {
-          context.go('/earn');
-        }
-      },
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'Connect'),
-        BottomNavigationBarItem(icon: Icon(Icons.live_tv_outlined), label: 'Channel'),
-        BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), label: 'Market'),
-        BottomNavigationBarItem(icon: Icon(Icons.auto_graph_outlined), label: 'Earn'),
-      ],
-    );
+    return const CustomBottomNav(currentIndex: 2);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: FloatingActionButton(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          onPressed: () => context.go('/home'),
-          child: const Icon(Icons.home, size: 30),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _buildBottomNav(),
       body: SafeArea(
         child: Column(

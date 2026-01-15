@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'paystack_screen.dart';
 
@@ -9,6 +10,7 @@ import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
 import '../services/walletconnect_service.dart';
 import '../widgets/tajify_top_bar.dart';
+import '../widgets/custom_bottom_nav.dart';
 
 class EarningCenterScreen extends StatefulWidget {
   const EarningCenterScreen({Key? key}) : super(key: key);
@@ -72,6 +74,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
   // Crypto payment state
   String _cryptoType = 'bnb';
   String _network = 'bsc';
+  
 
   @override
   void initState() {
@@ -404,12 +407,14 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
         final profile = response.data['data'];
         if (mounted) {
           setState(() {
-            _currentUserProfile = profile;
-            final name = profile?['name']?.toString();
+            // Handle nested user object
+            final user = profile?['user'] ?? profile;
+            _currentUserProfile = user ?? profile;
+            final name = user?['name']?.toString();
             if (name != null && name.isNotEmpty) {
               _currentUserInitial = name[0].toUpperCase();
             }
-            _currentUserAvatar = profile?['profile_avatar']?.toString();
+            _currentUserAvatar = user?['profile_avatar']?.toString();
           });
         }
         return;
@@ -1075,7 +1080,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.add_circle_outline, color: Colors.amber),
+                          const Icon(Icons.add_circle_outline, color: Color(0xFFB875FB)),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -1251,7 +1256,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.amber),
+                            borderSide: const BorderSide(color: Color(0xFFB875FB)),
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -1292,7 +1297,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                                   ),
                                   Text(
                                     '${(usdtPaystackBreakdown['fee_usdt'] as double).toStringAsFixed(8)} USDT',
-                                    style: TextStyle(color: Colors.amber.shade300, fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: TextStyle(color: Color(0xFFB875FB).withOpacity(0.7), fontSize: 12, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -1380,7 +1385,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                                   ),
                                   Text(
                                     '${(cryptoBreakdown['fee'] as double).toStringAsFixed(8)} ${(cryptoBreakdown['crypto'] as String).toUpperCase()}',
-                                    style: TextStyle(color: Colors.amber.shade300, fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: TextStyle(color: Color(0xFFB875FB).withOpacity(0.7), fontSize: 12, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -1408,7 +1413,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.amber,
+                            backgroundColor: Color(0xFFB875FB),
                             foregroundColor: Colors.black,
                           ),
                           onPressed: submitting ? null : submit,
@@ -1523,7 +1528,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.swap_horiz, color: Colors.amber),
+                        const Icon(Icons.swap_horiz, color: Color(0xFFB875FB)),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
@@ -1544,7 +1549,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         value: entry['value']!,
                         groupValue: mode,
                         onChanged: (value) => setSheetState(() => mode = value ?? mode),
-                        activeColor: Colors.amber,
+                        activeColor: Color(0xFFB875FB),
                         title: Text(entry['label']!, style: const TextStyle(color: Colors.white)),
                         tileColor: Colors.white.withOpacity(0.05),
                         shape: RoundedRectangleBorder(
@@ -1571,7 +1576,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.amber),
+                          borderSide: const BorderSide(color: Color(0xFFB875FB)),
                         ),
                       ),
                       style: const TextStyle(color: Colors.white),
@@ -1698,7 +1703,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: Colors.amber,
+                          backgroundColor: Color(0xFFB875FB),
                           foregroundColor: Colors.black,
                         ),
                         onPressed: submitting ? null : () => submitConversion(setSheetState),
@@ -1906,7 +1911,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.payments_outlined, color: Colors.amber),
+                          const Icon(Icons.payments_outlined, color: Color(0xFFB875FB)),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -1947,7 +1952,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.amber),
+                            borderSide: const BorderSide(color: Color(0xFFB875FB)),
                           ),
                         ),
                         items: _banks
@@ -1990,7 +1995,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.amber),
+                            borderSide: const BorderSide(color: Color(0xFFB875FB)),
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -2046,7 +2051,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           TextButton(
                             onPressed: validating ? null : () => validateAccount(setSheetState),
                             style: TextButton.styleFrom(
-                              foregroundColor: Colors.amber,
+                              foregroundColor: Color(0xFFB875FB),
                             ),
                             child: Text(validating ? 'Validating...' : 'Validate'),
                           ),
@@ -2071,7 +2076,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.amber),
+                            borderSide: const BorderSide(color: Color(0xFFB875FB)),
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -2117,9 +2122,9 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.1),
+                                  color: Color(0xFFB875FB).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                                  border: Border.all(color: Color(0xFFB875FB).withOpacity(0.3)),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2151,7 +2156,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                                           currency == 'usdt'
                                               ? '${fee.toStringAsFixed(8)} USDT'
                                               : '₦${fee.toStringAsFixed(2)}',
-                                          style: TextStyle(color: Colors.orange.shade300, fontSize: 12, fontWeight: FontWeight.bold),
+                                          style: TextStyle(color: Color(0xFFB875FB).withOpacity(0.7), fontSize: 12, fontWeight: FontWeight.bold),
                                         ),
                                       ],
                                     ),
@@ -2167,7 +2172,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                                           currency == 'usdt'
                                               ? '${total.toStringAsFixed(8)} USDT'
                                               : '₦${total.toStringAsFixed(2)}',
-                                          style: const TextStyle(color: Colors.orangeAccent, fontSize: 14, fontWeight: FontWeight.bold),
+                                          style: const TextStyle(color: Color(0xFFB875FB), fontSize: 14, fontWeight: FontWeight.bold),
                                         ),
                                       ],
                                     ),
@@ -2184,7 +2189,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.amber,
+                            backgroundColor: Color(0xFFB875FB),
                             foregroundColor: Colors.black,
                           ),
                           onPressed: submitting ? null : () => submitWithdrawal(setSheetState),
@@ -2572,7 +2577,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.send, color: Colors.amber),
+                          const Icon(Icons.send, color: Color(0xFFB875FB)),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -2615,7 +2620,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.amber),
+                            borderSide: const BorderSide(color: Color(0xFFB875FB)),
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -2669,7 +2674,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           TextButton(
                             onPressed: () => validateRecipient(setSheetState),
                             style: TextButton.styleFrom(
-                              foregroundColor: Colors.amber,
+                              foregroundColor: Color(0xFFB875FB),
                             ),
                             child: const Text('Validate'),
                           ),
@@ -2694,7 +2699,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.amber),
+                            borderSide: const BorderSide(color: Color(0xFFB875FB)),
                           ),
                         ),
                         style: const TextStyle(color: Colors.white),
@@ -2715,7 +2720,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.amber,
+                            backgroundColor: Color(0xFFB875FB),
                             foregroundColor: Colors.black,
                           ),
                           onPressed: submitting ? null : () => submitTransfer(setSheetState),
@@ -2849,7 +2854,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.account_balance_wallet, color: Colors.amber),
+                          const Icon(Icons.account_balance_wallet, color: Color(0xFFB875FB)),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -2889,7 +2894,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.amber),
+                            borderSide: const BorderSide(color: Color(0xFFB875FB)),
                           ),
                         ),
                       ),
@@ -2899,7 +2904,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            backgroundColor: Colors.amber,
+                            backgroundColor: Color(0xFFB875FB),
                             foregroundColor: Colors.black,
                           ),
                           onPressed: submitting ? null : submit,
@@ -2929,7 +2934,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: Colors.amber,
+      selectedColor: Color(0xFFB875FB),
       backgroundColor: const Color(0xFF2D2D2D), // Dark background for unselected chips
       labelStyle: TextStyle(
         color: selected ? Colors.black : Colors.white,
@@ -2973,12 +2978,12 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
               const SizedBox(height: 16),
               Text('Network: ${network.toUpperCase()}', style: const TextStyle(color: Colors.white70)),
               const SizedBox(height: 8),
-              Text('Payment expires: ${expiresAt}', style: TextStyle(color: Colors.amber.shade300, fontSize: 12)),
+              Text('Payment expires: ${expiresAt}', style: TextStyle(color: Color(0xFFB875FB).withOpacity(0.7), fontSize: 12)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => _checkAndProcessCryptoPayment(paymentRef),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
+                  backgroundColor: Color(0xFFB875FB),
                   foregroundColor: Colors.black,
                 ),
                 child: const Text('I Have Sent Payment'),
@@ -3096,7 +3101,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
   Color _methodAccent(String key) {
     switch (key) {
       case 'lp':
-        return const Color(0xFFFFC107);
+        return const Color(0xFFB875FB);
       case 'mining':
         return const Color(0xFF00BFA6);
       case 'faucet':
@@ -3106,7 +3111,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
       case 'referral':
         return const Color(0xFFFF5F6D);
       default:
-        return Colors.amberAccent;
+        return const Color(0xFFB875FB);
     }
   }
 
@@ -3146,16 +3151,6 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF111111),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: FloatingActionButton(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          onPressed: () => context.go('/home'),
-          child: const Icon(Icons.home, size: 30),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: SafeArea(
         child: Column(
           children: [
@@ -3174,33 +3169,12 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             ),
             Expanded(
               child: RefreshIndicator(
-                color: Colors.amber,
+                color: Color(0xFFB875FB),
                 onRefresh: _onRefresh,
                 child: _buildBody(),
               ),
             ),
-            BottomNavigationBar(
-              backgroundColor: const Color(0xFF0D0D0D),
-              selectedItemColor: Colors.amber,
-              unselectedItemColor: Colors.white70,
-              type: BottomNavigationBarType.fixed,
-              currentIndex: 3,
-              onTap: (index) {
-                if (index == 0) {
-                  context.go('/connect');
-                } else if (index == 1) {
-                  context.go('/channel');
-                } else if (index == 2) {
-                  context.go('/market');
-                }
-              },
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: 'Connect'),
-                BottomNavigationBarItem(icon: Icon(Icons.live_tv_outlined), label: 'Channel'),
-                BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), label: 'Market'),
-                BottomNavigationBarItem(icon: Icon(Icons.auto_graph_outlined), label: 'Earn'),
-              ],
-            ),
+            const CustomBottomNav(currentIndex: 3),
           ],
         ),
       ),
@@ -3209,7 +3183,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
 
   Widget _buildBody() {
     if (_loadingDashboard && !_refreshing) {
-      return const Center(child: CircularProgressIndicator(color: Colors.amber));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFFB875FB)));
     }
 
     if (_dashboardError != null && _earningCenter == null && !_refreshing) {
@@ -3229,7 +3203,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _loadInitialData,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                style: ElevatedButton.styleFrom(backgroundColor: Color(0xFFB875FB), foregroundColor: Colors.black),
                 child: const Text('Retry'),
               ),
             ],
@@ -3404,7 +3378,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
         'title': 'TAJISTARS Wallet',
         'value': '${_formatTajiBalance(_tajstarsBalance)} TAJISTARS',
         'secondary': '\$${tajstarsUsdValue.toStringAsFixed(2)}',
-        'accent': Colors.amber,
+        'accent': Color(0xFFB875FB),
       },
       {
         'title': 'TAJI Wallet',
@@ -3492,7 +3466,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: Colors.amber),
+                Icon(icon, color: Color(0xFFB875FB)),
                 const SizedBox(height: 6),
                 Text(title, style: const TextStyle(color: Colors.white70, fontSize: 13)),
               ],
@@ -3578,7 +3552,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
               child: Container(
                 height: 40,
                                               decoration: BoxDecoration(
-                  color: _activeTab == 'methods' ? Colors.amber : Colors.transparent,
+                  color: _activeTab == 'methods' ? Color(0xFFB875FB) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                                               ),
                 alignment: Alignment.center,
@@ -3596,7 +3570,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
               child: Container(
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _activeTab == 'history' ? Colors.amber : Colors.transparent,
+                  color: _activeTab == 'history' ? Color(0xFFB875FB) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
@@ -3660,52 +3634,119 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
       itemBuilder: (context, index) {
         final feature = features[index];
         final color = _methodAccent(feature['key'] as String);
-        return Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(_methodIcon(feature['key'] as String), color: color, size: 26),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      feature['name'] as String,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                  Text(
-                      (feature['description'] as String).length > 80
-                          ? '${(feature['description'] as String).substring(0, 80)}...'
-                          : feature['description'] as String,
-                      style: const TextStyle(color: Colors.white70, height: 1.3, fontSize: 12),
+        return GestureDetector(
+          onTap: () {
+            final key = feature['key'] as String;
+            if (key == 'mining') {
+              _openMiningFarmSheet();
+            } else if (key == 'faucet') {
+              _openFaucetSheet();
+            } else if (key == 'stake') {
+              _openStakeFarmSheet();
+            } else if (key == 'lp') {
+              _openLpStakingSheet();
+            } else if (key == 'referral') {
+              _openReferralSheet();
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
-              ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-            ],
-                          ),
-                        );
-                      },
-                    );
+                  child: Icon(_methodIcon(feature['key'] as String), color: color, size: 26),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        feature['name'] as String,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        (feature['description'] as String).length > 80
+                            ? '${(feature['description'] as String).substring(0, 80)}...'
+                            : feature['description'] as String,
+                        style: const TextStyle(color: Colors.white70, height: 1.3, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openFaucetSheet() {
+    _showSnack('Faucet feature coming soon!', isError: false);
+  }
+
+  void _openStakeFarmSheet() {
+    _showSnack('Stake Farm feature coming soon!', isError: false);
+  }
+
+  void _openLpStakingSheet() {
+    _showSnack('LP Staking feature coming soon!', isError: false);
+  }
+
+  void _openReferralSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (sheetContext) {
+        return _ReferralSheetContent(
+          apiService: _apiService,
+          showSnack: _showSnack,
+        );
+      },
+    );
+  }
+
+  void _openMiningFarmSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (sheetContext) {
+        return _MiningFarmSheetContent(
+          walletPayload: _walletPayload,
+          apiService: _apiService,
+          onRefresh: () {
+            _loadInitialData();
+            Navigator.pop(sheetContext);
+          },
+          showSnack: _showSnack,
+        );
+      },
+    );
   }
 
   Widget _buildHistory() {
@@ -3726,44 +3767,44 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
-          children: filters
-              .map(
-                  (filter) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GestureDetector(
-                        onTap: () => _fetchHistory(filter: filter['value']!),
-                        child: Container(
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: _historyFilter == filter['value']
-                                ? Colors.amber
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            filter['label']!,
-                            style: TextStyle(
+            children: filters
+                .map(
+                    (filter) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: GestureDetector(
+                          onTap: () => _fetchHistory(filter: filter['value']!),
+                          child: Container(
+                            height: 38,
+                            decoration: BoxDecoration(
                               color: _historyFilter == filter['value']
-                                  ? Colors.black
-                                  : Colors.white70,
-                              fontWeight: _historyFilter == filter['value']
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                    ),
+                                  ? Color(0xFFB875FB)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              filter['label']!,
+                              style: TextStyle(
+                                color: _historyFilter == filter['value']
+                                    ? Colors.black
+                                    : Colors.white70,
+                                fontWeight: _historyFilter == filter['value']
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                  ),
-                ),
-              )
-              .toList(),
+                    ),
+                  )
+                .toList(),
           ),
         ),
         const SizedBox(height: 16),
         if (_loadingHistory)
-          const Center(child: CircularProgressIndicator(color: Colors.amber))
+          const Center(child: CircularProgressIndicator(color: Color(0xFFB875FB)))
         else if (_earningHistory.isEmpty)
           Container(
             padding: const EdgeInsets.all(24),
@@ -3796,7 +3837,7 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)),
-                      child: Icon(_historyIcon(type), color: Colors.amber),
+                      child: Icon(_historyIcon(type), color: Color(0xFFB875FB)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -3809,10 +3850,10 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           ),
                           const SizedBox(height: 4),
                           if (description != null && description.isNotEmpty)
-                          Text(
+                            Text(
                               description,
-                            style: const TextStyle(color: Colors.white54, fontSize: 12),
-                          ),
+                              style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            ),
                           if (date != null)
                             Text(
                               '${date.year}/${date.month}/${date.day}',
@@ -3825,9 +3866,9 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                    Text(
+                        Text(
                           '$amount $currency',
-                      style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -3835,13 +3876,613 @@ class _EarningCenterScreenState extends State<EarningCenterScreen> with TickerPr
                           style: const TextStyle(color: Colors.white54, fontSize: 11),
                         ),
                       ],
-            ),
-          ],
-        ),
+                    ),
+                  ],
+                ),
               );
             },
-      ),
+          ),
       ],
+    );
+  }
+}
+
+class _MiningFarmSheetContent extends StatefulWidget {
+  final Map<String, dynamic>? walletPayload;
+  final ApiService apiService;
+  final VoidCallback onRefresh;
+  final Function(String, {required bool isError}) showSnack;
+
+  const _MiningFarmSheetContent({
+    required this.walletPayload,
+    required this.apiService,
+    required this.onRefresh,
+    required this.showSnack,
+  });
+
+  @override
+  State<_MiningFarmSheetContent> createState() => _MiningFarmSheetContentState();
+}
+
+class _MiningFarmSheetContentState extends State<_MiningFarmSheetContent> {
+  Map<String, dynamic>? _miningFarmInfo;
+  bool _loadingMiningFarm = true;
+  int plotsToBuy = 1;
+  bool purchasing = false;
+  bool claiming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMiningFarmInfo();
+  }
+
+  double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  Future<void> _loadMiningFarmInfo() async {
+    setState(() {
+      _loadingMiningFarm = true;
+    });
+    
+    try {
+      final response = await widget.apiService.getMiningFarmInfo();
+      print('[MINING FARM] API Response: ${response.data}');
+      if (response.data['success'] == true) {
+        setState(() {
+          _miningFarmInfo = response.data['data'];
+          _loadingMiningFarm = false;
+        });
+      } else {
+        setState(() {
+          _loadingMiningFarm = false;
+        });
+        widget.showSnack(response.data['message'] ?? 'Failed to load mining farm info', isError: true);
+      }
+    } catch (e) {
+      print('[MINING FARM ERROR] $e');
+      setState(() {
+        _loadingMiningFarm = false;
+      });
+      widget.showSnack('Error loading mining farm: $e', isError: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasActiveMining = _miningFarmInfo?['has_active_mining'] == true;
+    final plotsPurchased = _miningFarmInfo?['plots_purchased'] ?? 0;
+    final weeklyEarnings = _parseDouble(_miningFarmInfo?['weekly_earnings']) ?? 0.0;
+    final weeksRemaining = _miningFarmInfo?['weeks_remaining'] ?? 0;
+    final availableRewards = _parseDouble(_miningFarmInfo?['available_rewards']) ?? 0.0;
+    final totalEarned = _parseDouble(_miningFarmInfo?['total_earned']) ?? 0.0;
+    // Access coins from wallet object - walletPayload structure is {wallet: {coins: ...}}
+    final wallet = widget.walletPayload?['wallet'] ?? widget.walletPayload;
+    final tajistarBalance = _parseDouble(wallet?['coins'] ?? wallet?['tajstars_balance']) ?? 0.0;
+    final plotPrice = 5000.0;
+    
+    Widget _buildInfoRow(String label, String value) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          Text(
+            value,
+            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+        ],
+      );
+    }
+    
+    return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Mining Farm',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  if (_loadingMiningFarm)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: CircularProgressIndicator(color: Color(0xFF00BFA6)),
+                      ),
+                    )
+                  else if (hasActiveMining) ...[
+                    // Active Mining View
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00BFA6).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF00BFA6).withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.agriculture, color: Color(0xFF00BFA6), size: 28),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Active Mining',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _buildInfoRow('Plots Purchased', '$plotsPurchased'),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Weekly Earnings', '${weeklyEarnings.toStringAsFixed(2)} TAJISTAR'),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Weeks Remaining', '$weeksRemaining weeks'),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Available Rewards', '${availableRewards.toStringAsFixed(2)} TAJISTAR'),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Total Earned', '${totalEarned.toStringAsFixed(2)} TAJISTAR'),
+                          const SizedBox(height: 20),
+                          if (availableRewards > 0)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: claiming ? null : () async {
+                                  setState(() => claiming = true);
+                                  try {
+                                    final response = await widget.apiService.claimMiningRewards();
+                                    if (response.data['success'] == true) {
+                                      widget.showSnack('Rewards claimed successfully!', isError: false);
+                                      widget.onRefresh();
+                                    } else {
+                                      widget.showSnack(response.data['message'] ?? 'Failed to claim rewards', isError: true);
+                                    }
+                                  } catch (e) {
+                                    widget.showSnack('Error claiming rewards: $e', isError: true);
+                                  } finally {
+                                    setState(() => claiming = false);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00BFA6),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: claiming
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Claim Rewards',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    // Purchase View
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Purchase Mining Plots',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Buy farm plots at 5,000 TAJISTAR per plot and earn 110 TAJISTAR weekly for 50 weeks.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              const Text(
+                                'Number of Plots:',
+                                style: TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                              const Spacer(),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2A2A2A),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove, color: Colors.white),
+                                      onPressed: () {
+                                        setState(() {
+                                          if (plotsToBuy > 1) plotsToBuy--;
+                                        });
+                                      },
+                                    ),
+                                    Container(
+                                      width: 60,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        '$plotsToBuy',
+                                        style: const TextStyle(color: Colors.white, fontSize: 18),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.add, color: Colors.white),
+                                      onPressed: () {
+                                        setState(() {
+                                          plotsToBuy++;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildInfoRow('Price per Plot', '${plotPrice.toStringAsFixed(2)} TAJISTAR'),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Total Cost', '${(plotsToBuy * plotPrice).toStringAsFixed(2)} TAJISTAR'),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Weekly Earnings', '${(plotsToBuy * 110).toStringAsFixed(2)} TAJISTAR'),
+                          const SizedBox(height: 12),
+                          _buildInfoRow('Your Balance', '${tajistarBalance.toStringAsFixed(2)} TAJISTAR'),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: (purchasing || (plotsToBuy * plotPrice) > tajistarBalance) ? null : () async {
+                                setState(() => purchasing = true);
+                                try {
+                                  // Calculate total TAJISTAR amount needed
+                                  final totalTajistarAmount = plotsToBuy * plotPrice;
+                                  
+                                  // Generate a transaction hash (in real app, this would come from blockchain)
+                                  final transactionHash = 'mining_${DateTime.now().millisecondsSinceEpoch}_${plotsToBuy}';
+                                  
+                                  final response = await widget.apiService.purchaseMiningPlots(
+                                    plots: plotsToBuy,
+                                    tajistarAmount: totalTajistarAmount,
+                                    transactionHash: transactionHash,
+                                  );
+                                  
+                                  if (response.data['success'] == true) {
+                                    widget.showSnack('Mining plots purchased successfully!', isError: false);
+                                    widget.onRefresh();
+                                  } else {
+                                    widget.showSnack(response.data['message'] ?? 'Failed to purchase plots', isError: true);
+                                  }
+                                } catch (e) {
+                                  widget.showSnack('Error purchasing plots: $e', isError: true);
+                                } finally {
+                                  setState(() => purchasing = false);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: (plotsToBuy * plotPrice) > tajistarBalance
+                                    ? Colors.grey
+                                    : const Color(0xFF00BFA6),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: purchasing
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : Text(
+                                      (plotsToBuy * plotPrice) > tajistarBalance
+                                          ? 'Insufficient Balance'
+                                          : 'Purchase ${plotsToBuy} Plot${plotsToBuy > 1 ? 's' : ''}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+  }
+}
+
+// Referral Sheet Content Widget
+class _ReferralSheetContent extends StatefulWidget {
+  final ApiService apiService;
+  final Function(String, {required bool isError}) showSnack;
+
+  const _ReferralSheetContent({
+    required this.apiService,
+    required this.showSnack,
+  });
+
+  @override
+  State<_ReferralSheetContent> createState() => _ReferralSheetContentState();
+}
+
+class _ReferralSheetContentState extends State<_ReferralSheetContent> {
+  String? _referralCode;
+  int _totalReferrals = 0;
+  int _monthlyReferrals = 0;
+  double _totalEarnings = 0.0;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReferralData();
+  }
+
+  Future<void> _loadReferralData() async {
+    setState(() {
+      _loading = true;
+    });
+
+    try {
+      // Load referral code
+      final linkResponse = await widget.apiService.getReferralLink();
+      if (linkResponse.data['success'] == true) {
+        setState(() {
+          _referralCode = linkResponse.data['data']?['username'];
+        });
+      }
+
+      // Load referral stats
+      final statsResponse = await widget.apiService.getReferralStats();
+      if (statsResponse.data['success'] == true) {
+        final data = statsResponse.data['data'];
+        setState(() {
+          _totalReferrals = data['total_referrals'] ?? 0;
+          _monthlyReferrals = data['monthly_referrals'] ?? 0;
+          _totalEarnings = (data['total_earnings'] ?? 0).toDouble();
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _loading = false;
+        });
+        widget.showSnack(statsResponse.data['message'] ?? 'Failed to load referral stats', isError: true);
+      }
+    } catch (e) {
+      print('[REFERRAL ERROR] $e');
+      setState(() {
+        _loading = false;
+      });
+      widget.showSnack('Error loading referral data: $e', isError: true);
+    }
+  }
+
+  void _copyToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    widget.showSnack('Copied to clipboard!', isError: false);
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        Text(
+          value,
+          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Refer & Earn',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: CircularProgressIndicator(color: Color(0xFFB875FB)),
+              ),
+            )
+          else ...[
+            // Referral Code Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFB875FB).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFB875FB).withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.person_add, color: Color(0xFFB875FB), size: 28),
+                      SizedBox(width: 12),
+                      Text(
+                        'Your Referral Code',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1C1C1E),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _referralCode ?? 'Loading...',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy, color: Color(0xFFB875FB)),
+                          onPressed: () {
+                            if (_referralCode != null) {
+                              _copyToClipboard(_referralCode!);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Stats Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your Stats',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInfoRow('Total Referrals', '$_totalReferrals'),
+                  const SizedBox(height: 12),
+                  _buildInfoRow('This Month', '$_monthlyReferrals'),
+                  const SizedBox(height: 12),
+                  _buildInfoRow('Total Earnings', '${_totalEarnings.toStringAsFixed(2)} TAJISTAR'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ],
+      ),
     );
   }
 } 

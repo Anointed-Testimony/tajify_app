@@ -9,13 +9,15 @@ import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_quill/flutter_quill.dart';
+import 'package:html_editor_enhanced/html_editor.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/tajify_top_bar.dart';
 
 class CreateContentScreen extends StatefulWidget {
-  const CreateContentScreen({super.key});
+  final String? initialCategory;
+  
+  const CreateContentScreen({super.key, this.initialCategory});
 
   @override
   State<CreateContentScreen> createState() => _CreateContentScreenState();
@@ -30,11 +32,12 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   final bool _uploadDebug = kDebugMode;
   
   // Category selection
-  String _selectedCategory = 'Tube Short';
+  late String _selectedCategory;
   final List<Map<String, String>> _categories = [
     {'id': 'Tube Short', 'name': 'Tube Short', 'label': 'Short', 'color': 'blue'},
     {'id': 'Tube Max', 'name': 'Tube Max', 'label': 'Max', 'color': 'green'},
     {'id': 'Tube Prime', 'name': 'Tube Prime', 'label': 'Prime', 'color': 'amber'},
+    {'id': 'Private', 'name': 'Private', 'label': 'Private', 'color': 'red'},
     {'id': 'Audio', 'name': 'Audio', 'label': 'Audio', 'color': 'purple'},
     {'id': 'Blog', 'name': 'Blog', 'label': 'Blog', 'color': 'orange'},
   ];
@@ -71,9 +74,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   
   // Blog state
   final TextEditingController _blogTitleController = TextEditingController();
-  late final QuillController _blogContentController;
-  final FocusNode _blogContentFocusNode = FocusNode();
-  final ScrollController _blogContentScrollController = ScrollController();
+  late final HtmlEditorController _blogContentController;
   final TextEditingController _blogExcerptController = TextEditingController();
   final TextEditingController _blogTagInputController = TextEditingController();
   List<String> _blogTags = [];
@@ -96,7 +97,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   @override
   void initState() {
     super.initState();
-    _blogContentController = QuillController.basic();
+    _selectedCategory = widget.initialCategory ?? 'Tube Short';
+    _blogContentController = HtmlEditorController();
     _descriptionController.addListener(_onDescriptionChanged);
     _loadCurrentUserBasics();
   }
@@ -126,7 +128,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
               children: [
                 Icon(
                   Icons.tune,
-                  color: _showVideoEditor ? const Color(0xFFFFB800) : Colors.white,
+                  color: _showVideoEditor ? const Color(0xFFB875FB) : Colors.white,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -174,7 +176,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             max: _videoDuration,
             divisions: _videoDuration > 0 ? _videoDuration.clamp(1, double.infinity).round() : null,
             values: RangeValues(_trimStart, _trimEnd),
-            activeColor: const Color(0xFFFFB800),
+            activeColor: const Color(0xFFB875FB),
             inactiveColor: Colors.white24,
             onChanged: (values) {
               setState(() {
@@ -206,7 +208,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             child: ElevatedButton(
               onPressed: (_trimEnd - _trimStart) > 1 && !_isTrimmingVideo ? _applyTrim : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFB800),
+                backgroundColor: const Color(0xFFB875FB),
                 disabledBackgroundColor: Colors.grey[700],
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -238,9 +240,6 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     _audioTitleController.dispose();
     _albumTitleController.dispose();
     _blogTitleController.dispose();
-    _blogContentController.dispose();
-    _blogContentFocusNode.dispose();
-    _blogContentScrollController.dispose();
     _blogExcerptController.dispose();
     _blogTagInputController.dispose();
     super.dispose();
@@ -265,6 +264,27 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   }
 
   Future<void> _loadCurrentUserBasics() async {
+    try {
+      final response = await _apiService.get('/auth/me');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final profile = response.data['data'];
+        if (mounted) {
+          setState(() {
+            // Handle nested user object
+            final user = profile?['user'] ?? profile;
+            final name = user?['name']?.toString();
+            if (name != null && name.isNotEmpty) {
+              _currentUserInitial = name[0].toUpperCase();
+            }
+            _currentUserAvatar = user?['profile_avatar']?.toString();
+          });
+        }
+        return;
+      }
+    } catch (_) {
+      // ignored
+    }
+
     try {
       final name = await _storageService.getUserName();
       final avatar = await _storageService.getUserProfilePicture();
@@ -729,9 +749,14 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
 
   Future<void> _publishBlog() async {
     final title = _blogTitleController.text.trim();
-    // Get content from Quill editor - convert to plain text for now
-    // TODO: Convert to HTML format to preserve rich text formatting
-    final content = _blogContentController.document.toPlainText().trim();
+    // Get content from HTML editor
+    String content = '';
+    try {
+      content = await _blogContentController.getText();
+    } catch (e) {
+      debugPrint('Error getting blog content: $e');
+      content = '';
+    }
     final excerpt = _blogExcerptController.text.trim();
 
     if (title.isEmpty || content.isEmpty) {
@@ -759,7 +784,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       _uploadLog('Blog response', response.data);
 
       _showSuccess(_blogPublished ? 'Blog published successfully!' : 'Blog saved as draft!');
-      _resetBlog();
+      await _resetBlog();
 
       if (mounted) {
         if (Navigator.of(context).canPop()) {
@@ -900,10 +925,10 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     });
   }
 
-  void _resetBlog() {
+  Future<void> _resetBlog() async {
+    _blogContentController.clear();
     setState(() {
       _blogTitleController.clear();
-      _blogContentController.clear();
       _blogExcerptController.clear();
       _blogTagInputController.clear();
       _blogTags = [];
@@ -982,11 +1007,11 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       case 'green':
         return Colors.green;
       case 'amber':
-        return Colors.amber;
+        return Color(0xFFB875FB);
       case 'purple':
         return Colors.purple;
       case 'orange':
-        return Colors.orange;
+        return Color(0xFFB875FB);
       default:
         return Colors.grey;
     }
@@ -1182,7 +1207,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         decoration: BoxDecoration(
           gradient: isActive
               ? const LinearGradient(
-                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                  colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                 )
               : null,
           color: isActive ? null : Colors.grey[800],
@@ -1307,7 +1332,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                   )
                 : const Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                     ),
                   ),
           ),
@@ -1378,7 +1403,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                   height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                   ),
                 ),
                 SizedBox(width: 12),
@@ -1416,14 +1441,14 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: isSelected ? Colors.amber : Colors.grey[700]!,
+                      color: isSelected ? Color(0xFFB875FB) : Colors.grey[700]!,
                       width: isSelected ? 2 : 1,
                     ),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: Colors.amber.withOpacity(0.2),
+                              color: Color(0xFFB875FB).withOpacity(0.2),
                               blurRadius: 10,
                               offset: const Offset(0, 6),
                             ),
@@ -1451,7 +1476,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                             width: 20,
                             height: 20,
                             decoration: const BoxDecoration(
-                              color: Colors.amber,
+                              color: Color(0xFFB875FB),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -1498,7 +1523,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             decoration: BoxDecoration(
               border: Border.all(
                 color: _selectedAutoThumbnailId == null && _selectedThumbnail == 'custom'
-                    ? Colors.amber
+                    ? Color(0xFFB875FB)
                     : Colors.grey[600]!,
                 width: _selectedAutoThumbnailId == null && _selectedThumbnail == 'custom' ? 2 : 1,
               ),
@@ -1509,7 +1534,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                 Icon(
                   Icons.image,
                   color: _selectedAutoThumbnailId == null && _selectedThumbnail == 'custom'
-                      ? Colors.amber
+                      ? Color(0xFFB875FB)
                       : Colors.grey[400],
                 ),
                 const SizedBox(width: 12),
@@ -1518,7 +1543,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                     'Upload Custom Thumbnail',
                     style: TextStyle(
                       color: _selectedAutoThumbnailId == null && _selectedThumbnail == 'custom'
-                          ? Colors.amber
+                          ? Color(0xFFB875FB)
                           : Colors.white,
                       fontWeight: _selectedAutoThumbnailId == null && _selectedThumbnail == 'custom'
                           ? FontWeight.bold
@@ -1527,7 +1552,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                   ),
                 ),
                 if (_customThumbnail != null)
-                  const Icon(Icons.check, color: Colors.amber, size: 20),
+                  const Icon(Icons.check, color: Color(0xFFB875FB), size: 20),
               ],
             ),
           ),
@@ -1582,7 +1607,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             min: 0,
             max: _videoDuration,
             value: clampedValue,
-            activeColor: const Color(0xFFFFB800),
+            activeColor: const Color(0xFFB875FB),
             inactiveColor: Colors.white24,
             onChanged: (value) {
               setState(() {
@@ -1609,8 +1634,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             child: OutlinedButton.icon(
               onPressed: _captureThumbnailAtCurrentPosition,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFFFB800)),
-                foregroundColor: const Color(0xFFFFB800),
+                side: const BorderSide(color: Color(0xFFB875FB)),
+                foregroundColor: const Color(0xFFB875FB),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -1731,7 +1756,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFFFB800)),
+                borderSide: const BorderSide(color: Color(0xFFB875FB)),
               ),
             ),
           ),
@@ -1760,7 +1785,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFFFB800)),
+              borderSide: const BorderSide(color: Color(0xFFB875FB)),
             ),
           ),
         ),
@@ -2419,7 +2444,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         children: [
           Row(
             children: const [
-              Icon(Icons.article_outlined, color: Colors.amber),
+              Icon(Icons.article_outlined, color: Color(0xFFB875FB)),
               SizedBox(width: 8),
               Text(
                 'Write a Blog Post',
@@ -2459,70 +2484,53 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.grey[700]!),
               ),
-              child: Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      border: Border(
-                        bottom: BorderSide(color: Colors.grey[700]!),
-                      ),
+              child: HtmlEditor(
+                controller: _blogContentController,
+                htmlEditorOptions: const HtmlEditorOptions(
+                  hint: 'Write your story...',
+                  shouldEnsureVisible: true,
+                  initialText: '',
+                ),
+                htmlToolbarOptions: HtmlToolbarOptions(
+                  defaultToolbarButtons: [
+                    const StyleButtons(),
+                    const FontSettingButtons(fontSizeUnit: false),
+                    const FontButtons(
+                      clearAll: false,
+                      strikethrough: false,
+                      superscript: false,
+                      subscript: false,
                     ),
-                    child: QuillSimpleToolbar(
-                      controller: _blogContentController,
-                      config: QuillSimpleToolbarConfig(
-                        showBoldButton: true,
-                        showItalicButton: true,
-                        showUnderLineButton: true,
-                        showStrikeThrough: true,
-                        showInlineCode: false,
-                        showColorButton: true,
-                        showBackgroundColorButton: true,
-                        showClearFormat: true,
-                        showAlignmentButtons: true,
-                        showLeftAlignment: true,
-                        showCenterAlignment: true,
-                        showRightAlignment: true,
-                        showJustifyAlignment: true,
-                        showHeaderStyle: true,
-                        showListNumbers: true,
-                        showListBullets: true,
-                        showListCheck: false,
-                        showCodeBlock: false,
-                        showQuote: true,
-                        showIndent: true,
-                        showLink: true,
-                        showUndo: true,
-                        showRedo: true,
-                        showDirection: false,
-                        showSearchButton: false,
-                        showSubscript: false,
-                        showSuperscript: false,
-                        showFontFamily: true,
-                        showFontSize: true,
-                        showDividers: true,
-                        showSmallButton: false,
-                      ),
+                    const ColorButtons(),
+                    const ListButtons(listStyles: false),
+                    const ParagraphButtons(
+                      textDirection: false,
+                      lineHeight: false,
+                      caseConverter: false,
                     ),
-                  ),
-                  Container(
-                    height: 300,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[900],
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                    const InsertButtons(
+                      video: false,
+                      audio: false,
+                      table: false,
+                      hr: false,
+                      otherFile: false,
                     ),
-                    child: QuillEditor(
-                      focusNode: _blogContentFocusNode,
-                      scrollController: _blogContentScrollController,
-                      controller: _blogContentController,
-                      config: QuillEditorConfig(
-                        placeholder: 'Write your story...',
-                        padding: const EdgeInsets.all(16),
-                      ),
+                    const OtherButtons(
+                      fullscreen: false,
+                      codeview: false,
+                      undo: false,
+                      redo: false,
+                      help: false,
+                      copy: false,
+                      paste: false,
                     ),
-                  ),
-                ],
+                  ],
+                  toolbarPosition: ToolbarPosition.aboveEditor,
+                  toolbarType: ToolbarType.nativeScrollable,
+                ),
+                otherOptions: const OtherOptions(
+                  height: 300,
+                ),
               ),
             ),
           ),
@@ -2555,7 +2563,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                               tag,
                               style: const TextStyle(color: Colors.white),
                             ),
-                            backgroundColor: Colors.amber.withOpacity(0.15),
+                            backgroundColor: Color(0xFFB875FB).withOpacity(0.15),
                             deleteIcon: const Icon(Icons.close, size: 16),
                             deleteIconColor: Colors.white70,
                             onDeleted: () => _removeBlogTag(tag),
@@ -2623,7 +2631,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
               value: _blogPublished,
-              activeColor: Colors.amber,
+              activeColor: Color(0xFFB875FB),
               onChanged: (value) {
                 setState(() {
                   _blogPublished = value;
@@ -2670,94 +2678,99 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFFFB800)),
+        borderSide: const BorderSide(color: Color(0xFFB875FB)),
       ),
     );
   }
 
   Widget _buildActionButtons() {
-    final canPublish = _canPublish();
-    
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: _selectedCategory == 'Audio'
-                ? _resetAudio
-                : _selectedCategory == 'Blog'
-                    ? _resetBlog
-                    : _resetVideo,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: BorderSide(color: Colors.grey[700]!),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.refresh, color: Colors.white, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Reset',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: ElevatedButton(
-            onPressed: canPublish && !_isProcessing ? _handlePublish : null,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: _selectedCategory == 'Audio'
-                  ? Colors.purple
-                  : _selectedCategory == 'Blog'
-                      ? Colors.tealAccent.shade700
-                      : const Color(0xFFFFB800),
-              disabledBackgroundColor: Colors.grey[700],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: _isProcessing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.publish, color: Colors.black, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        _selectedCategory == 'Audio'
-                            ? 'Publish Track'
-                            : _selectedCategory == 'Blog'
-                                ? (_blogPublished ? 'Publish Blog' : 'Save Draft')
-                                : 'Publish Video',
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+    return FutureBuilder<bool>(
+      future: _canPublish(),
+      builder: (context, snapshot) {
+        final canPublish = snapshot.data ?? false;
+        
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _selectedCategory == 'Audio'
+                    ? _resetAudio
+                    : _selectedCategory == 'Blog'
+                        ? _resetBlog
+                        : _resetVideo,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: Colors.grey[700]!),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-          ),
-        ),
-      ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.refresh, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Reset',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                onPressed: canPublish && !_isProcessing ? _handlePublish : null,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: _selectedCategory == 'Audio'
+                      ? Colors.purple
+                      : _selectedCategory == 'Blog'
+                          ? Colors.tealAccent.shade700
+                          : const Color(0xFFB875FB),
+                  disabledBackgroundColor: Colors.grey[700],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isProcessing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.publish, color: Colors.black, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            _selectedCategory == 'Audio'
+                                ? 'Publish Track'
+                                : _selectedCategory == 'Blog'
+                                    ? (_blogPublished ? 'Publish Blog' : 'Save Draft')
+                                    : 'Publish Video',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  bool _canPublish() {
+  Future<bool> _canPublish() async {
     if (_selectedCategory == 'Tube Prime' && _videoTitle.trim().isEmpty) {
       return false;
     }
@@ -2774,7 +2787,13 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       return false;
     }
     if (_selectedCategory == 'Blog') {
-      if (_blogTitleController.text.trim().isEmpty || _blogContentController.document.toPlainText().trim().isEmpty) {
+      try {
+        final content = await _blogContentController.getText();
+        if (_blogTitleController.text.trim().isEmpty || content.trim().isEmpty) {
+          return false;
+        }
+      } catch (e) {
+        debugPrint('Error checking blog content: $e');
         return false;
       }
     }

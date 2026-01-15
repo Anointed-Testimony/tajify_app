@@ -7,11 +7,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:just_audio/just_audio.dart';
 import '../services/api_service.dart';
 import '../services/firebase_service.dart';
 import 'camera_recording_screen.dart';
 import '../widgets/create_video_option_sheet.dart';
 import '../widgets/tajify_top_bar.dart';
+import '../widgets/custom_bottom_nav.dart';
 import '../services/storage_service.dart';
 
 // Skeleton loading widgets
@@ -268,7 +271,14 @@ enum ChannelCategory { short, max, prime, blog, audio }
 
 class ChannelScreen extends StatefulWidget {
   final bool openCreateModalOnStart;
-  const ChannelScreen({super.key, this.openCreateModalOnStart = false});
+  final String? initialCategory;
+  final Map<String, dynamic>? initialAudioTrack;
+  const ChannelScreen({
+    super.key, 
+    this.openCreateModalOnStart = false, 
+    this.initialCategory,
+    this.initialAudioTrack,
+  });
 
   @override
   State<ChannelScreen> createState() => _ChannelScreenState();
@@ -323,6 +333,23 @@ class _ChannelScreenState extends State<ChannelScreen> {
   bool _blogHasMore = true;
   int _blogCurrentPage = 1;
   String? _blogError;
+  
+  // Audio section state
+  List<Map<String, dynamic>> _audioPosts = [];
+  List<Map<String, dynamic>> _recentlyPlayedAudio = [];
+  List<Map<String, dynamic>> _topChartsAudio = [];
+  bool _audioInitialLoading = false;
+  bool _audioMoreLoading = false;
+  bool _audioHasMore = true;
+  int _audioCurrentPage = 1;
+  String? _audioError;
+  
+  // Audio player state
+  AudioPlayer? _audioPlayer;
+  Map<String, dynamic>? _currentPlayingAudio;
+  bool _isAudioPlaying = false;
+  Duration _audioDuration = Duration.zero;
+  Duration _audioPosition = Duration.zero;
 
   final ApiService _apiService = ApiService();
   final StorageService _storageService = StorageService();
@@ -349,6 +376,26 @@ class _ChannelScreenState extends State<ChannelScreen> {
   @override
   void initState() {
     super.initState();
+    // Set initial category if provided
+    if (widget.initialCategory != null) {
+      switch (widget.initialCategory) {
+        case 'audio':
+          _selectedCategory = ChannelCategory.audio;
+          break;
+        case 'short':
+          _selectedCategory = ChannelCategory.short;
+          break;
+        case 'max':
+          _selectedCategory = ChannelCategory.max;
+          break;
+        case 'prime':
+          _selectedCategory = ChannelCategory.prime;
+          break;
+        case 'blog':
+          _selectedCategory = ChannelCategory.blog;
+          break;
+      }
+    }
     _scrollController.addListener(_onScroll);
     _loadPosts();
     if (widget.openCreateModalOnStart) {
@@ -369,9 +416,65 @@ class _ChannelScreenState extends State<ChannelScreen> {
     // Initialize Firebase and load messages count
     _initializeFirebaseAndLoadMessagesCount();
     _loadLocalUserInfo();
+    
+    // Initialize audio player
+    _audioPlayer = AudioPlayer();
+    _audioPlayer!.durationStream.listen((duration) {
+      if (mounted) {
+        setState(() {
+          _audioDuration = duration ?? Duration.zero;
+        });
+      }
+    });
+    _audioPlayer!.positionStream.listen((position) {
+      if (mounted) {
+        setState(() {
+          _audioPosition = position;
+        });
+      }
+    });
+    _audioPlayer!.playingStream.listen((playing) {
+      if (mounted) {
+        setState(() {
+          _isAudioPlaying = playing;
+        });
+      }
+    });
+    
+    // Play initial audio track if provided
+    if (widget.initialAudioTrack != null && _selectedCategory == ChannelCategory.audio) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Wait for audio posts to load, then play the track
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          _playAudio(widget.initialAudioTrack!);
+        }
+      });
+    }
   }
 
   Future<void> _loadLocalUserInfo() async {
+    try {
+      final response = await _apiService.get('/auth/me');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final profile = response.data['data'];
+        if (mounted) {
+          setState(() {
+            // Handle nested user object
+            final user = profile?['user'] ?? profile;
+            final name = user?['name']?.toString();
+            if (name != null && name.isNotEmpty) {
+              _currentUserInitial = name[0].toUpperCase();
+            }
+            _currentUserAvatar = user?['profile_avatar']?.toString();
+          });
+        }
+        return;
+      }
+    } catch (_) {
+      // ignored
+    }
+
     try {
       final name = await _storageService.getUserName();
       final avatar = await _storageService.getUserProfilePicture();
@@ -440,7 +543,271 @@ class _ChannelScreenState extends State<ChannelScreen> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _descController.dispose();
+    _audioPlayer?.dispose();
     super.dispose();
+  }
+
+  Future<void> _playAudio(Map<String, dynamic> audio) async {
+    try {
+      final audioUrl = _getAudioMediaUrl(audio);
+      if (audioUrl.isEmpty) {
+        print('[AUDIO] No audio URL found');
+        return;
+      }
+      
+      if (_currentPlayingAudio?['id'] == audio['id'] && _audioPlayer != null) {
+        // Same audio - toggle play/pause
+        if (_isAudioPlaying) {
+          await _audioPlayer!.pause();
+        } else {
+          await _audioPlayer!.play();
+        }
+      } else {
+        // New audio - stop current and play new
+        if (_audioPlayer != null) {
+          await _audioPlayer!.stop();
+        }
+        
+        setState(() {
+          _currentPlayingAudio = audio;
+        });
+        
+        await _audioPlayer!.setUrl(audioUrl);
+        await _audioPlayer!.play();
+      }
+    } catch (e) {
+      print('[AUDIO] Error playing audio: $e');
+    }
+  }
+  
+  Future<void> _pauseAudio() async {
+    try {
+      await _audioPlayer?.pause();
+    } catch (e) {
+      print('[AUDIO] Error pausing audio: $e');
+    }
+  }
+  
+  Future<void> _resumeAudio() async {
+    try {
+      await _audioPlayer?.play();
+    } catch (e) {
+      print('[AUDIO] Error resuming audio: $e');
+    }
+  }
+  
+  String _getAudioMediaUrl(Map<String, dynamic> audio) {
+    final mediaFiles = audio['media_files'];
+    if (mediaFiles is List && mediaFiles.isNotEmpty) {
+      final first = mediaFiles.first;
+      if (first is Map<String, dynamic>) {
+        final path = first['file_path'] ?? first['file_url'] ?? first['url'];
+        if (path is String && path.isNotEmpty) {
+          return path;
+        }
+      }
+    }
+    final fallback = audio['audio_url'] ??
+        audio['media_url'] ??
+        audio['file_path'] ??
+        audio['file_url'] ??
+        audio['url'];
+    return fallback?.toString() ?? '';
+  }
+  
+  String _formatAudioDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+  
+  Widget _buildBottomAudioPlayer() {
+    if (_currentPlayingAudio == null) {
+      return const SizedBox.shrink();
+    }
+    
+    final user = _currentPlayingAudio!['user'] ?? {};
+    final coverImageUrl = _getThumbnail(_currentPlayingAudio!);
+    final title = _currentPlayingAudio!['title'] ?? _currentPlayingAudio!['description'] ?? 'Untitled';
+    final artist = user['name'] ?? user['username'] ?? 'Unknown';
+    
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        border: Border(
+          top: BorderSide(color: Colors.grey[800]!, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Cover image
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: coverImageUrl != null && coverImageUrl.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: coverImageUrl,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[800],
+                          child: const Center(
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFB875FB),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.white38,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.music_note,
+                        color: Colors.white38,
+                        size: 24,
+                      ),
+                    ),
+            ),
+          ),
+          // Title and artist
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    artist,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Play/Pause button
+          IconButton(
+            onPressed: () {
+              if (_isAudioPlaying) {
+                _pauseAudio();
+              } else {
+                _resumeAudio();
+              }
+            },
+            icon: Icon(
+              _isAudioPlaying ? Icons.pause : Icons.play_arrow,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          // Progress indicator
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 2,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
+                    ),
+                    child: Slider(
+                      value: _audioDuration.inMilliseconds > 0
+                          ? _audioPosition.inMilliseconds / _audioDuration.inMilliseconds
+                          : 0.0,
+                      onChanged: (value) {
+                        if (_audioDuration.inMilliseconds > 0) {
+                          final position = Duration(
+                            milliseconds: (value * _audioDuration.inMilliseconds).round(),
+                          );
+                          _audioPlayer?.seek(position);
+                        }
+                      },
+                      activeColor: Color(0xFFB875FB),
+                      inactiveColor: Colors.grey[700],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _formatAudioDuration(_audioPosition),
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
+                        ),
+                        Text(
+                          _formatAudioDuration(_audioDuration),
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _onScroll() {
@@ -468,6 +835,11 @@ class _ChannelScreenState extends State<ChannelScreen> {
             _loadBlogPosts(loadMore: true);
           }
           break;
+        case ChannelCategory.audio:
+          if (_audioHasMore && !_audioMoreLoading && !_audioInitialLoading) {
+            _loadAudioPosts(loadMore: true);
+          }
+          break;
         default:
           break;
       }
@@ -481,6 +853,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
         _loadTubeMaxPosts(),
         _loadTubePrimePosts(),
         _loadBlogPosts(),
+        _loadAudioPosts(),
       ]);
     } catch (e) {
       print('Error loading posts: $e');
@@ -794,13 +1167,96 @@ class _ChannelScreenState extends State<ChannelScreen> {
       _maxCurrentPage = 1;
       _primeCurrentPage = 1;
       _blogCurrentPage = 1;
+      _audioCurrentPage = 1;
     });
     await Future.wait([
       _loadTubeShortPosts(),
       _loadTubeMaxPosts(),
       _loadTubePrimePosts(),
       _loadBlogPosts(),
+      _loadAudioPosts(),
     ]);
+  }
+  
+  Future<void> _loadAudioPosts({bool loadMore = false}) async {
+    if (loadMore) {
+      if (_audioMoreLoading || !_audioHasMore) return;
+    } else {
+      if (_audioInitialLoading) return;
+      _audioHasMore = true;
+    }
+
+    final targetPage = loadMore ? _audioCurrentPage + 1 : 1;
+
+    setState(() {
+      if (loadMore) {
+        _audioMoreLoading = true;
+      } else {
+        _audioInitialLoading = true;
+        _audioError = null;
+      }
+    });
+
+    try {
+      final response = await _apiService.getAudioPosts(page: targetPage, limit: 10);
+      print('[DEBUG] Audio posts response: ${response.statusCode}');
+      print('[DEBUG] Audio posts data: ${response.data}');
+      if (response.data['success']) {
+        print('[DEBUG] Response data structure: ${response.data['data'].runtimeType}');
+        print('[DEBUG] Response data keys: ${response.data['data'] is Map ? (response.data['data'] as Map).keys.toList() : 'not a map'}');
+        final posts = _extractPosts(response.data['data']);
+        print('[DEBUG] Extracted audio posts: ${posts.length}');
+        if (posts.isNotEmpty) {
+          print('[DEBUG] First audio post: ${posts[0]}');
+        }
+        if (!mounted) return;
+        setState(() {
+          if (loadMore) {
+            _audioPosts.addAll(posts);
+          } else {
+            _audioPosts = posts;
+            // Set recently played to first 4 posts
+            _recentlyPlayedAudio = posts.take(4).toList();
+            // Set top charts to top 4 by likes
+            _topChartsAudio = List.from(posts)
+              ..sort((a, b) {
+                final aLikes = (a['likes_count'] ?? 0) is int 
+                    ? (a['likes_count'] ?? 0) as int
+                    : int.tryParse((a['likes_count'] ?? 0).toString()) ?? 0;
+                final bLikes = (b['likes_count'] ?? 0) is int 
+                    ? (b['likes_count'] ?? 0) as int
+                    : int.tryParse((b['likes_count'] ?? 0).toString()) ?? 0;
+                return bLikes.compareTo(aLikes);
+              });
+            _topChartsAudio = _topChartsAudio.take(4).toList();
+          }
+          _audioCurrentPage = targetPage;
+          _audioHasMore = posts.length >= 10;
+        });
+      } else if (!loadMore && mounted) {
+        setState(() {
+          _audioError = response.data['message']?.toString() ?? 'Failed to load audio.';
+          _audioHasMore = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading audio posts: $e');
+      if (!mounted) return;
+      setState(() {
+        if (!loadMore) {
+          _audioError = 'Failed to load audio.';
+        }
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        if (loadMore) {
+          _audioMoreLoading = false;
+        } else {
+          _audioInitialLoading = false;
+        }
+      });
+    }
   }
 
   // Hashtag suggestions methods
@@ -901,7 +1357,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                   ),
                 ),
               ),
@@ -953,7 +1409,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                   ),
                 ),
               ),
@@ -1005,7 +1461,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                   ),
                 ),
               ),
@@ -1044,7 +1500,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                   ),
                 ),
               ),
@@ -1112,7 +1568,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                         color: Colors.grey[800],
                         child: const Center(
                           child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                             strokeWidth: 2,
                           ),
                         ),
@@ -1152,7 +1608,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: Colors.amber,
+                          backgroundColor: Color(0xFFB875FB),
                           backgroundImage: userAvatar != null 
                               ? NetworkImage(userAvatar) 
                               : null,
@@ -1326,6 +1782,536 @@ class _ChannelScreenState extends State<ChannelScreen> {
     );
   }
 
+  Widget _buildAudioSection() {
+    // Load audio posts if not already loading and empty
+    if (!_audioInitialLoading && _audioPosts.isEmpty && _audioError == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadAudioPosts();
+      });
+    }
+    
+    if (_audioInitialLoading && _audioPosts.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
+          ),
+        ),
+      );
+    }
+    
+    if (_audioError != null && _audioPosts.isEmpty) {
+      return _buildErrorBanner(_audioError!, () => _loadAudioPosts());
+    }
+    
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Quick Access Buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildQuickAccessButton(
+                    icon: Icons.music_note,
+                    label: 'Songs',
+                    gradient: [Colors.purple, Colors.pink],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickAccessButton(
+                    icon: Icons.library_music,
+                    label: 'Albums',
+                    gradient: [Colors.blue, Colors.cyan],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickAccessButton(
+                    icon: Icons.playlist_play,
+                    label: 'Playlists',
+                    gradient: [Color(0xFFB875FB), Colors.red],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Top Charts
+          if (_topChartsAudio.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: const Text(
+                'Top Charts',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 220,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: _topChartsAudio.length,
+                itemBuilder: (context, index) {
+                  final audio = _topChartsAudio[index];
+                  final user = audio['user'] ?? {};
+                  final gradients = [
+                    [Colors.purple.shade700, Colors.purple.shade900],
+                    [Colors.pink.shade700, Colors.red.shade900],
+                    [Color(0xFFB875FB), Color(0xFFB875FB)],
+                    [Colors.blue.shade700, Colors.indigo.shade900],
+                  ];
+                  return Padding(
+                    padding: EdgeInsets.only(right: index == _topChartsAudio.length - 1 ? 0 : 16),
+                    child: _buildChartCard(
+                      rank: index + 1,
+                      title: audio['title'] ?? audio['description'] ?? 'Untitled',
+                      artist: user['name'] ?? user['username'] ?? 'Unknown',
+                      gradient: gradients[index % gradients.length],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
+          // All Audio Posts List
+          if (_audioPosts.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: const Text(
+                'All Audio',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              itemCount: _audioPosts.length + (_audioMoreLoading ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index == _audioPosts.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                final audio = _audioPosts[index];
+                final user = audio['user'] ?? {};
+                final likesCount = (audio['likes_count'] ?? 0) is int 
+                    ? (audio['likes_count'] ?? 0) as int
+                    : int.tryParse((audio['likes_count'] ?? 0).toString()) ?? 0;
+                final coverImageUrl = _getThumbnail(audio);
+                return _buildLibraryItem({
+                  'title': audio['title'] ?? audio['description'] ?? 'Untitled',
+                  'subtitle': '${user['name'] ?? user['username'] ?? 'Unknown'} • $likesCount likes',
+                  'coverImageUrl': coverImageUrl,
+                  'audio': audio,
+                });
+              },
+            ),
+            const SizedBox(height: 24),
+          ] else if (!_audioInitialLoading) ...[
+            _buildEmptyState('No audio posts available.'),
+            const SizedBox(height: 24),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessButton({
+    required IconData icon,
+    required String label,
+    required List<Color> gradient,
+  }) {
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradient,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentlyPlayedCard({
+    required String title,
+    required String artist,
+    required List<Color> gradient,
+  }) {
+    return Container(
+      width: 160,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradient,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.2),
+                borderRadius: const BorderRadius.only(
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: const Icon(
+                Icons.music_note,
+                color: Colors.white38,
+                size: 50,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  artist,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaylistCard(Map<String, dynamic> playlist) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: playlist['gradient'] as List<Color>,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  playlist['title'] as String,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  playlist['subtitle'] as String,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChartCard({
+    required int rank,
+    required String title,
+    required String artist,
+    required List<Color> gradient,
+  }) {
+    return Container(
+      width: 160,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradient,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '#$rank',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.2),
+                borderRadius: const BorderRadius.only(
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: const Icon(
+                Icons.music_note,
+                color: Colors.white38,
+                size: 50,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  artist,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLibraryItem(Map<String, dynamic> item) {
+    final coverImageUrl = item['coverImageUrl'] as String?;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[800]?.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            final audio = item['audio'] as Map<String, dynamic>?;
+            if (audio != null) {
+              _playAudio(audio);
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[700],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: coverImageUrl != null && coverImageUrl.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: coverImageUrl,
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[700],
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFFB875FB),
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[700],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.music_note,
+                                color: Colors.white38,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[700],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.music_note,
+                            color: Colors.white38,
+                            size: 28,
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['title'] as String,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item['subtitle'] as String,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlaceholderSection({
     required String title,
     required String message,
@@ -1424,10 +2410,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                     case ChannelCategory.blog:
                       return _buildBlogSection();
                     case ChannelCategory.audio:
-                      return _buildPlaceholderSection(
-                        title: 'Audio',
-                        message: 'Audio experiences are coming soon.',
-                      );
+                      return _buildAudioSection();
                   }
                 },
               ),
@@ -1440,54 +2423,15 @@ class _ChannelScreenState extends State<ChannelScreen> {
           ],
         ),
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: FloatingActionButton(
-          backgroundColor: Colors.amber,
-          foregroundColor: Colors.black,
-          elevation: 4,
-          onPressed: () {
-            context.go('/home');
-          },
-          child: const Icon(Icons.home, size: 32),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildBottomAudioPlayer(),
+            const CustomBottomNav(currentIndex: 0),
+          ],
         ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF232323),
-        selectedItemColor: Colors.amber, // Use a highlight color for active tab
-        unselectedItemColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people_alt_outlined),
-            label: 'Connect',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.live_tv_outlined),
-            label: 'Channel',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.storefront_outlined),
-            label: 'Market',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.auto_graph_outlined),
-            label: 'Earn',
-          ),
-        ],
-        currentIndex: 1, // Channel tab is active
-        onTap: (int index) {
-          if (index == 0) {
-            context.go('/connect');
-          } else if (index == 1) {
-            return;
-          } else if (index == 3) {
-            context.go('/earn');
-          }
-          // Add navigation for other tabs as needed
-        },
       ),
     );
   }
@@ -1504,10 +2448,10 @@ class _ChannelScreenState extends State<ChannelScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? Colors.amber : Colors.white.withOpacity(0.08),
+            color: selected ? Color(0xFFB875FB) : Colors.white.withOpacity(0.08),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? Colors.amberAccent : Colors.white24,
+              color: selected ? Color(0xFFB875FB) : Colors.white24,
               width: 1.2,
             ),
           ),
@@ -1644,7 +2588,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                           'Tube Prime',
                           'Premium content (paid)',
                           Icons.star,
-                          Colors.amber,
+                          Color(0xFFB875FB),
                           'tube_prime',
                         ),
                       ],
@@ -1866,7 +2810,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                                           children: [
                                             Text(
                                               '#$hashtag',
-                                              style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w500),
+                                              style: const TextStyle(color: Color(0xFFB875FB), fontWeight: FontWeight.w500),
                                             ),
                                             const SizedBox(width: 8),
                                             Text(
@@ -1892,7 +2836,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                                   _handleUpload();
                                 } : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: _selectedVideo != null ? Colors.amber : Colors.grey[600],
+                                  backgroundColor: _selectedVideo != null ? Color(0xFFB875FB) : Colors.grey[600],
                                   foregroundColor: _selectedVideo != null ? Colors.black : Colors.grey[400],
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -2028,7 +2972,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
               });
               if (setModalState != null) setModalState(() {});
             },
-            activeColor: Colors.amber,
+            activeColor: Color(0xFFB875FB),
           ),
         ],
       ),
@@ -2253,7 +3197,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.1),
+                      color: Color(0xFFB875FB).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(40),
                     ),
                     child: const Center(
@@ -2312,7 +3256,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
           width: 20,
           height: 20,
           decoration: BoxDecoration(
-            color: isCompleted ? Colors.amber : Colors.grey[600],
+            color: isCompleted ? Color(0xFFB875FB) : Colors.grey[600],
             borderRadius: BorderRadius.circular(10),
           ),
           child: isCompleted
@@ -2448,7 +3392,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                 children: [
                   const SizedBox(height: 16),
                   const Center(
-                    child: Text('Saved Videos', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 20)),
+                    child: Text('Saved Videos', style: TextStyle(color: Color(0xFFB875FB), fontWeight: FontWeight.bold, fontSize: 20)),
                   ),
                   const SizedBox(height: 18),
                   if (savedShorts.isNotEmpty) ...[
@@ -2620,13 +3564,13 @@ class _ChannelScreenState extends State<ChannelScreen> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.amber.withOpacity(0.1),
+                                color: Color(0xFFB875FB).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                                border: Border.all(color: Color(0xFFB875FB).withOpacity(0.3)),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.auto_awesome, color: Colors.amber),
+                                  const Icon(Icons.auto_awesome, color: Color(0xFFB875FB)),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
@@ -2714,7 +3658,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                               child: ElevatedButton(
                                 onPressed: _isUploading ? null : () => _handleRecordedVideoUpload(duration),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.amber,
+                                  backgroundColor: Color(0xFFB875FB),
                                   foregroundColor: Colors.black,
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(
@@ -2937,7 +3881,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
           decoration: BoxDecoration(
             color: Colors.grey[900],
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.amber, width: 1),
+            border: Border.all(color: Color(0xFFB875FB), width: 1),
           ),
           child: const Center(
             child: Column(
@@ -2953,7 +3897,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                   ),
                 ),
                 SizedBox(height: 4),
-                Text('Generating...', style: TextStyle(color: Colors.amber, fontSize: 10)),
+                Text('Generating...', style: TextStyle(color: Color(0xFFB875FB), fontSize: 10)),
               ],
             ),
           ),
@@ -2965,7 +3909,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
           decoration: BoxDecoration(
             color: Colors.grey[900],
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.amber, width: 1),
+            border: Border.all(color: Color(0xFFB875FB), width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -3157,7 +4101,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                   
                   if (setModalState != null) setModalState(() {});
                 },
-                activeColor: Colors.amber,
+                activeColor: Color(0xFFB875FB),
               ),
             ],
           ),
@@ -3477,7 +4421,7 @@ class _TubePrimeCardState extends State<_TubePrimeCard> {
                   value: _progress,
                   minHeight: 5,
                   backgroundColor: Colors.black26,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                 ),
               ),
             // Preview badge
@@ -3487,11 +4431,11 @@ class _TubePrimeCardState extends State<_TubePrimeCard> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.95),
+                  color: Color(0xFFB875FB).withOpacity(0.95),
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.amber.withOpacity(0.25),
+                      color: Color(0xFFB875FB).withOpacity(0.25),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -3550,7 +4494,7 @@ class _TubePrimeCardState extends State<_TubePrimeCard> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
+                    backgroundColor: Color(0xFFB875FB),
                     foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -3594,7 +4538,7 @@ class _TubePrimeCardWithSave extends StatelessWidget {
             onTap: onToggleSave,
             child: Icon(
               isSaved ? Icons.favorite : Icons.favorite_border,
-              color: isSaved ? Colors.amber : Colors.white,
+              color: isSaved ? Color(0xFFB875FB) : Colors.white,
               size: 22,
             ),
           ),

@@ -34,6 +34,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
   
   bool _isEmailMode = true;
   bool _isPasswordVisible = false;
@@ -95,6 +96,14 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
     
     // Listen to username changes for availability checking
     _usernameController.addListener(_onUsernameChanged);
+    
+    // Check if already authenticated
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isAuthenticated) {
+        context.go('/home');
+      }
+    });
   }
 
   @override
@@ -108,6 +117,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -478,7 +488,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.dark(
-              primary: Colors.amber,
+              primary: Color(0xFFB875FB),
               onPrimary: Colors.black,
               surface: Color(0xFF2A2A2A),
               onSurface: Colors.white,
@@ -514,6 +524,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
       print('Password: ${_passwordController.text}');
       print('Confirm Password: ${_confirmPasswordController.text}');
       print('Date of Birth: $_selectedDate');
+      print('Referral Code: ${_referralCodeController.text}');
       print('Is Email Mode: $_isEmailMode');
       print('===================');
 
@@ -528,31 +539,33 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
         'dateOfBirth': _selectedDate!.toIso8601String().split('T')[0], // Format as YYYY-MM-DD
         'password': _passwordController.text,
         'passwordConfirmation': _confirmPasswordController.text,
+        if (_referralCodeController.text.trim().isNotEmpty) 'ref': _referralCodeController.text.trim(),
       };
 
       print('Registration Data: $registrationData');
 
       // Call registration API through AuthProvider
-      final success = await authProvider.register(registrationData);
+      final result = await authProvider.register(registrationData);
 
-      print('Registration success: $success');
+      print('Registration result: $result');
 
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
 
-        if (success) {
+        if (result['success']) {
           print('Registration successful!');
+          print('User ID: ${result['userId']}');
           
           ToastService.showSuccessToast(context, 'Registration successful! Please check your email for verification.');
           
-          // Navigate to OTP verification screen
+          // Navigate to OTP verification screen with user_id
           context.go('/otp-verification', extra: {
             'email': _isEmailMode ? _emailController.text.trim() : null,
             'phone': !_isEmailMode ? _phoneNumber : null,
             'purpose': 'registration',
-            'userId': null, // Will be set during OTP verification
+            'userId': result['userId'],
           });
         } else {
           print('Registration failed: ${authProvider.errorMessage}');
@@ -565,7 +578,20 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
         setState(() {
           _isLoading = false;
         });
-        ToastService.showErrorToast(context, 'Registration failed: ${e.toString()}');
+        // Extract the actual error message from the exception
+        String errorMessage = 'Registration failed';
+        if (e is Exception) {
+          final message = e.toString();
+          // Remove "Exception: " prefix if present
+          if (message.startsWith('Exception: ')) {
+            errorMessage = message.substring(11);
+          } else {
+            errorMessage = message;
+          }
+        } else {
+          errorMessage = e.toString();
+        }
+        ToastService.showErrorToast(context, errorMessage);
       }
     }
   }
@@ -771,7 +797,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.amber.withOpacity(0.2),
+                          color: Color(0xFFB875FB).withOpacity(0.2),
                           blurRadius: 20,
                           spreadRadius: 5,
                         ),
@@ -833,7 +859,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                                   duration: const Duration(milliseconds: 300),
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: _isEmailMode ? Colors.amber : Colors.transparent,
+                                    color: _isEmailMode ? Color(0xFFB875FB) : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -855,7 +881,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                                   duration: const Duration(milliseconds: 300),
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: !_isEmailMode ? Colors.amber : Colors.transparent,
+                                    color: !_isEmailMode ? Color(0xFFB875FB) : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -980,6 +1006,16 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                         },
                       ),
                       
+                      const SizedBox(height: 20),
+                      
+                      // Referral Code Field (Optional)
+                      _buildTextField(
+                        controller: _referralCodeController,
+                        hintText: 'Referral Code (Optional)',
+                        icon: Icons.card_giftcard,
+                        keyboardType: TextInputType.text,
+                      ),
+                      
                       const SizedBox(height: 40),
                       
                       // Sign Up Button
@@ -991,9 +1027,9 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                           child: ElevatedButton(
                             onPressed: _isFormValid && !_isLoading ? _handleSignup : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
+                              backgroundColor: Color(0xFFB875FB),
                               foregroundColor: Colors.black,
-                              disabledBackgroundColor: Colors.amber.withOpacity(0.3),
+                              disabledBackgroundColor: Color(0xFFB875FB).withOpacity(0.3),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -1039,7 +1075,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                             child: Text(
                               'Sign In',
                               style: TextStyle(
-                                color: Colors.amber,
+                                color: Color(0xFFB875FB),
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1049,58 +1085,6 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                       ),
                       
                       const SizedBox(height: 40),
-                      
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'or continue with',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Social Login Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildSocialButton(
-                            'assets/google.png',
-                            'Google',
-                            _handleGoogleSignup,
-                          ),
-                          _buildSocialButton(
-                            'assets/facebook.png',
-                            'Facebook',
-                            _handleFacebookSignup,
-                          ),
-                          _buildSocialButton(
-                            'assets/apple.png',
-                            'Apple',
-                            _handleAppleSignup,
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),
@@ -1211,7 +1195,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
                         padding: EdgeInsets.all(8.0),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                         ),
                       ),
                     )
@@ -1249,7 +1233,7 @@ class _SignupScreenState extends State<SignupScreen> with TickerProviderStateMix
               _usernameStatus,
               style: TextStyle(
                 color: _isCheckingUsername 
-                    ? Colors.amber 
+                    ? Color(0xFFB875FB) 
                     : _isUsernameAvailable 
                         ? Colors.green 
                         : Colors.red,

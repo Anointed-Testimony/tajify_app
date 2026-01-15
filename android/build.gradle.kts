@@ -32,7 +32,7 @@ subprojects {
                     if (minSdkVersion == null || minSdkVersion!!.apiLevel < 23) {
                         minSdk = 23
                     }
-                    targetSdk = 34
+                    targetSdk = 35
                 }
             }
         }

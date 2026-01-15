@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class StorageService {
@@ -26,30 +28,18 @@ class StorageService {
 
   // User data management
   Future<void> saveUserData(Map<String, dynamic> userData) async {
-    final userDataJson = userData.toString();
+    final userDataJson = jsonEncode(userData);
     await _storage.write(key: _userDataKey, value: userDataJson);
   }
 
   Future<Map<String, dynamic>?> getUserData() async {
     final userDataJson = await _storage.read(key: _userDataKey);
     if (userDataJson != null) {
-      // Simple parsing for demo - in production use proper JSON parsing
       try {
-        // Remove the curly braces and split by comma
-        final cleanData = userDataJson.substring(1, userDataJson.length - 1);
-        final pairs = cleanData.split(', ');
-        final Map<String, dynamic> result = {};
-        
-        for (final pair in pairs) {
-          final colonIndex = pair.indexOf(':');
-          if (colonIndex != -1) {
-            final key = pair.substring(0, colonIndex).trim();
-            final value = pair.substring(colonIndex + 1).trim();
-            result[key] = value;
-          }
-        }
-        
-        return result;
+        final decoded = jsonDecode(userDataJson);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return decoded.map((k, v) => MapEntry(k.toString(), v));
+        return null;
       } catch (e) {
         return null;
       }
@@ -93,7 +83,7 @@ class StorageService {
   // Social authentication data
   Future<void> saveSocialAuthData(String provider, Map<String, dynamic> data) async {
     final key = '${_socialAuthDataKey}_$provider';
-    final dataJson = data.toString();
+    final dataJson = jsonEncode(data);
     await _storage.write(key: key, value: dataJson);
   }
 
@@ -102,21 +92,10 @@ class StorageService {
     final dataJson = await _storage.read(key: key);
     if (dataJson != null) {
       try {
-        // Simple parsing for demo - in production use proper JSON parsing
-        final cleanData = dataJson.substring(1, dataJson.length - 1);
-        final pairs = cleanData.split(', ');
-        final Map<String, dynamic> result = {};
-        
-        for (final pair in pairs) {
-          final colonIndex = pair.indexOf(':');
-          if (colonIndex != -1) {
-            final key = pair.substring(0, colonIndex).trim();
-            final value = pair.substring(colonIndex + 1).trim();
-            result[key] = value;
-          }
-        }
-        
-        return result;
+        final decoded = jsonDecode(dataJson);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return decoded.map((k, v) => MapEntry(k.toString(), v));
+        return null;
       } catch (e) {
         return null;
       }

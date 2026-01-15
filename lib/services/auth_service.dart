@@ -16,6 +16,7 @@ class AuthService {
     required String password,
     required String passwordConfirmation,
     File? profilePicture,
+    String? ref,
   }) async {
     try {
       print('=== AUTH SERVICE DEBUG ===');
@@ -39,6 +40,7 @@ class AuthService {
         'password': password,
         'password_confirmation': passwordConfirmation,
         'auth_type': email.isNotEmpty ? 'email' : 'phone',
+        if (ref != null && ref.isNotEmpty) 'ref': ref,
       });
 
       print('FormData created: ${formData.fields}');
@@ -136,36 +138,27 @@ class AuthService {
       print('Phone: $phone');
       print('OTP: $otp');
       print('OTP Length: ${otp.length}');
-      
-      // Use the numeric user ID if provided, otherwise fall back to email/phone
-      final userIdentifier = userId ?? (email.isNotEmpty ? email : phone);
+      print('User ID: $userId');
       
       // Determine type based on what's provided
       final type = email.isNotEmpty ? 'email' : 'phone';
       
-      // Determine verification type based on purpose
-      final verificationType = purpose ?? 'registration';
+      // Backend always requires user_id for OTP verification
+      if (userId == null) {
+        throw Exception('User ID is required for OTP verification');
+      }
       
-      print('User ID being sent: $userIdentifier');
+      // Build request data - backend requires user_id, code, and type
+      final requestData = <String, dynamic>{
+        'user_id': userId,
+        'code': otp,
+        'type': type,
+      };
+      
+      print('User ID being sent: $userId');
       print('Type being sent: $type');
-      print('Verification type: $verificationType');
+      print('Purpose: $purpose');
       
-      final requestData = {
-        'user_id': userIdentifier,
-        'code': otp,
-        'type': type,
-        'verification_type': verificationType,
-      };
-      
-      // Also try without verification_type if the server doesn't support it
-      final fallbackRequestData = {
-        'user_id': userIdentifier,
-        'code': otp,
-        'type': type,
-      };
-      
-      print('Primary request data: $requestData');
-      print('Fallback request data: $fallbackRequestData');
       print('Request Data: $requestData');
       
       final response = await _apiService.post('/auth/verify-otp', data: requestData);
@@ -212,9 +205,13 @@ class AuthService {
     String? phone,
   }) async {
     try {
+      // Determine which identifier is provided and set the type accordingly
+      final identifier = email.isNotEmpty ? email : (phone ?? '');
+      final type = email.isNotEmpty ? 'email' : 'phone';
+      
       final response = await _apiService.post('/auth/forgot-password', data: {
-        'email': email,
-        'phone': phone,
+        'identifier': identifier,
+        'type': type,
       });
       return response.data;
     } catch (e) {
@@ -224,17 +221,17 @@ class AuthService {
 
   // Reset Password
   Future<Map<String, dynamic>> resetPassword({
-    required String email,
-    String? phone,
-    required String otp,
+    required int userId,
+    required String code,
+    required String type,
     required String password,
     required String passwordConfirmation,
   }) async {
     try {
       final response = await _apiService.post('/auth/reset-password', data: {
-        'email': email,
-        'phone': phone,
-        'otp': otp,
+        'user_id': userId,
+        'code': code,
+        'type': type,
         'password': password,
         'password_confirmation': passwordConfirmation,
       });

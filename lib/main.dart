@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'config/app_router.dart';
 import 'providers/auth_provider.dart';
 import 'services/token_manager.dart';
@@ -9,8 +11,20 @@ import 'services/walletconnect_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Run app immediately, initialize services in background
+  runApp(const MyApp());
+  
+  // Initialize services asynchronously after app starts
+  _initializeServices();
+}
+
+Future<void> _initializeServices() async {
   // Initialize token manager
-  await TokenManager().initialize();
+  try {
+    await TokenManager().initialize();
+  } catch (e) {
+    debugPrint('⚠️ TokenManager init failed: $e');
+  }
   
   // Initialize WalletConnect (non-blocking)
   try {
@@ -30,22 +44,43 @@ void main() async {
       FirebaseService.initializeAuth();
     }
   });
-  
-  runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final AuthProvider _authProvider;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _authProvider = AuthProvider();
+    _router = createRouter(_authProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider.value(value: _authProvider),
       ],
       child: MaterialApp.router(
         title: 'Tajify',
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en', 'US'),
+        ],
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF8C00)),
           useMaterial3: true,
@@ -57,7 +92,7 @@ class MyApp extends StatelessWidget {
             foregroundColor: Colors.white,
           ),
         ),
-        routerConfig: appRouter,
+        routerConfig: _router,
       ),
     );
   }

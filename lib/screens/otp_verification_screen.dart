@@ -139,11 +139,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             }
           } else if (widget.purpose == 'password_reset') {
             // Navigate to reset password screen
+            // Extract user_id from response if available
+            final userId = response['data']?['user_id'] ?? response['data']?['user']?['id'];
+            final type = widget.email.isNotEmpty ? 'email' : 'phone';
             if (mounted) {
               context.go('/reset-password', extra: {
                 'email': widget.email,
                 'phone': widget.phone,
                 'otp': otpCode,
+                'userId': userId,
+                'type': type,
               });
             }
           } else {
@@ -155,15 +160,47 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
           }
         } else {
         print('OTP verification failed: ${response['message']}');
-        setState(() {
-          _errorMessage = response['message'] ?? 'OTP verification failed';
-        });
+        // Extract error message from response, checking for errors object first
+        String errorMessage = 'OTP verification failed';
+        if (response['errors'] != null && response['errors'] is Map) {
+          final errors = response['errors'] as Map;
+          if (errors.isNotEmpty) {
+            final firstError = errors.values.first;
+            if (firstError is List && firstError.isNotEmpty) {
+              errorMessage = firstError.first.toString();
+            } else if (firstError is String) {
+              errorMessage = firstError;
+            }
+          }
+        } else {
+          errorMessage = response['message'] ?? 'OTP verification failed';
+        }
+        if (mounted) {
+          setState(() {
+            _errorMessage = errorMessage;
+          });
+        }
       }
     } catch (e) {
       print('OTP verification error: $e');
-      setState(() {
-        _errorMessage = e.toString();
-      });
+      // Extract the actual error message from the exception
+      String errorMessage = 'OTP verification failed';
+      if (e is Exception) {
+        final message = e.toString();
+        // Remove "Exception: " prefix if present
+        if (message.startsWith('Exception: ')) {
+          errorMessage = message.substring(11);
+        } else {
+          errorMessage = message;
+        }
+      } else {
+        errorMessage = e.toString();
+      }
+      if (mounted) {
+        setState(() {
+          _errorMessage = errorMessage;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -281,7 +318,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFFF8C00), width: 2),
+                          borderSide: const BorderSide(color: Color(0xFFB875FB), width: 2),
                         ),
                         contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -324,7 +361,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _verifyOtp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8C00),
+                    backgroundColor: const Color(0xFFB875FB),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -376,7 +413,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                         style: TextStyle(
                           color: _resendCountdown > 0 || _isResending
                               ? Colors.grey[600]
-                              : const Color(0xFFFF8C00),
+                              : const Color(0xFFB875FB),
                           fontSize: 14,
                           fontFamily: 'Ebrima',
                         ),

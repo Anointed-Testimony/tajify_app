@@ -274,6 +274,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     // Listen to text changes for form validation
     _emailController.addListener(_validateForm);
     _passwordController.addListener(_validateForm);
+    
+    // Check if already authenticated
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isAuthenticated) {
+        context.go('/home');
+      }
+    });
   }
 
   void _initializeAnimations() {
@@ -567,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           borderRadius: BorderRadius.circular(30),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.amber.withOpacity(0.2),
+                              color: Color(0xFFB875FB).withOpacity(0.2),
                               blurRadius: 20,
                               spreadRadius: 5,
                             ),
@@ -625,7 +633,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   duration: const Duration(milliseconds: 300),
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: _isEmailMode ? Colors.amber : Colors.transparent,
+                                    color: _isEmailMode ? Color(0xFFB875FB) : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -647,7 +655,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   duration: const Duration(milliseconds: 300),
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: !_isEmailMode ? Colors.amber : Colors.transparent,
+                                    color: !_isEmailMode ? Color(0xFFB875FB) : Colors.transparent,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Center(
@@ -692,9 +700,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           child: ElevatedButton(
                             onPressed: _isFormValid && !_isLoading ? _handleLogin : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
+                              backgroundColor: Color(0xFFB875FB),
                               foregroundColor: Colors.black,
-                              disabledBackgroundColor: Colors.amber.withOpacity(0.3),
+                              disabledBackgroundColor: Color(0xFFB875FB).withOpacity(0.3),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -730,7 +738,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         child: Text(
                           'Forgot Password?',
                           style: TextStyle(
-                            color: Colors.amber.withOpacity(0.8),
+                            color: Color(0xFFB875FB).withOpacity(0.8),
                             fontSize: 16,
                           ),
                         ),
@@ -756,65 +764,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             child: Text(
                               'Sign Up',
                               style: TextStyle(
-                                color: Colors.amber,
+                                color: Color(0xFFB875FB),
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 40),
-                      
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'or continue with',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Social Login Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildSocialButton(
-                            'assets/google.png',
-                            'Google',
-                            _handleGoogleLogin,
-                          ),
-                          _buildSocialButton(
-                            'assets/facebook.png',
-                            'Facebook',
-                            _handleFacebookLogin,
-                          ),
-                          _buildSocialButton(
-                            'assets/apple.png',
-                            'Apple',
-                            _handleAppleLogin,
                           ),
                         ],
                       ),

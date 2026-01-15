@@ -1,4 +1,4 @@
-package com.example.tajify_app
+package com.tajify.app
 
 import android.media.MediaCodec
 import android.media.MediaExtractor
@@ -104,3 +104,4 @@ class MainActivity : FlutterActivity() {
         return outputFile.absolutePath
     }
 }
+

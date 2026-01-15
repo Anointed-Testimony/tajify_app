@@ -3,15 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../services/api_service.dart';
 import '../services/firebase_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/tajstars_gift_modal.dart';
+import '../widgets/tajify_top_bar.dart';
 
 class TubePlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> videos;
   final int initialIndex;
-  const TubePlayerScreen({required this.videos, required this.initialIndex, Key? key}) : super(key: key);
+  final Future<List<Map<String, dynamic>>> Function(int page)? loadMoreVideos;
+  const TubePlayerScreen({
+    required this.videos, 
+    required this.initialIndex, 
+    this.loadMoreVideos,
+    Key? key
+  }) : super(key: key);
 
   @override
   State<TubePlayerScreen> createState() => _TubePlayerScreenState();
@@ -70,6 +78,12 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   bool _disposed = false;
   static const int _maxControllers = 3; // Only keep 3 controllers in memory
   
+  // Pagination state
+  List<Map<String, dynamic>> _allVideos = [];
+  int _currentVideoPage = 1;
+  bool _isLoadingMoreVideos = false;
+  bool _hasMoreVideos = true;
+  
   // Notification state
   int _notificationUnreadCount = 0;
   Timer? _notificationTimer;
@@ -77,6 +91,10 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   // Messages state
   int _messagesUnreadCount = 0;
   StreamSubscription? _messagesCountSubscription;
+  
+  // User profile state
+  String? _currentUserAvatar;
+  String _currentUserInitial = 'U';
 
   @override
   bool get wantKeepAlive => false; // Don't keep alive to prevent memory issues
@@ -87,22 +105,25 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     _currentPage = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
     
+    // Initialize videos list
+    _allVideos = List.from(widget.videos);
+    
     // Initialize arrays
-    _liked = List.generate(widget.videos.length, (_) => false);
-    _likeCounts = List.generate(widget.videos.length, (_) => 0);
-    _saved = List.generate(widget.videos.length, (_) => false);
-    _saveCounts = List.generate(widget.videos.length, (_) => 0);
-    _commentCounts = List.generate(widget.videos.length, (_) => 0);
-    _isPlaying = List.generate(widget.videos.length, (_) => false);
-    _following = List.generate(widget.videos.length, (_) => false);
-    _followLoading = List.generate(widget.videos.length, (_) => false);
-    _likeLoading = List.generate(widget.videos.length, (_) => false);
-    _saveLoading = List.generate(widget.videos.length, (_) => false);
-    _likeTapped = List.generate(widget.videos.length, (_) => false);
-    _saveTapped = List.generate(widget.videos.length, (_) => false);
+    _liked = List.generate(_allVideos.length, (_) => false);
+    _likeCounts = List.generate(_allVideos.length, (_) => 0);
+    _saved = List.generate(_allVideos.length, (_) => false);
+    _saveCounts = List.generate(_allVideos.length, (_) => 0);
+    _commentCounts = List.generate(_allVideos.length, (_) => 0);
+    _isPlaying = List.generate(_allVideos.length, (_) => false);
+    _following = List.generate(_allVideos.length, (_) => false);
+    _followLoading = List.generate(_allVideos.length, (_) => false);
+    _likeLoading = List.generate(_allVideos.length, (_) => false);
+    _saveLoading = List.generate(_allVideos.length, (_) => false);
+    _likeTapped = List.generate(_allVideos.length, (_) => false);
+    _saveTapped = List.generate(_allVideos.length, (_) => false);
     
     // Initialize video controllers with lazy loading
-    _videoControllers = List.generate(widget.videos.length, (_) => null);
+    _videoControllers = List.generate(_allVideos.length, (_) => null);
     
     // Load initial video controller
     _initializeVideoController(widget.initialIndex);
@@ -136,6 +157,46 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     
     // Initialize Firebase and load messages count
     _initializeFirebaseAndLoadMessagesCount();
+    
+    // Load user profile
+    _loadUserProfile();
+  }
+  
+  Future<void> _loadUserProfile() async {
+    try {
+      final response = await _apiService.get('/auth/me');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final profile = response.data['data'];
+        if (mounted && !_disposed) {
+          setState(() {
+            final user = profile?['user'] ?? profile;
+            final name = user?['name']?.toString();
+            if (name != null && name.isNotEmpty) {
+              _currentUserInitial = name[0].toUpperCase();
+            }
+            _currentUserAvatar = user?['profile_avatar']?.toString();
+          });
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+    
+    // Fallback to storage
+    try {
+      final name = await _storageService.getUserName();
+      final avatar = await _storageService.getUserProfilePicture();
+      if (mounted && !_disposed) {
+        setState(() {
+          if (name != null && name.isNotEmpty) {
+            _currentUserInitial = name[0].toUpperCase();
+          }
+          _currentUserAvatar = avatar;
+        });
+      }
+    } catch (e) {
+      // Ignore errors
+    }
   }
   
   Future<void> _initializeFirebaseAndLoadMessagesCount() async {
@@ -185,7 +246,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   }
 
   Future<void> _initializeVideoController(int index) async {
-    if (_disposed || index < 0 || index >= widget.videos.length) return;
+    if (_disposed || index < 0 || index >= _allVideos.length) return;
     
     // Dispose old controllers if we have too many
     _cleanupOldControllers();
@@ -193,7 +254,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     // Initialize the requested controller
     if (_videoControllers[index] == null) {
       try {
-        final url = widget.videos[index]['media_files']?[0]?['file_path']?.toString() ?? '';
+        final url = _allVideos[index]['media_files']?[0]?['file_path']?.toString() ?? '';
         if (url.isNotEmpty) {
           print('[DEBUG] Initializing video controller for index $index');
           final controller = VideoPlayerController.network(url);
@@ -250,12 +311,12 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   Future<void> _loadInteractionCounts() async {
     if (_disposed) return;
     
-    print('[DEBUG] Loading interaction counts for ${widget.videos.length} videos');
-    for (int i = 0; i < widget.videos.length; i++) {
+    print('[DEBUG] Loading interaction counts for ${_allVideos.length} videos');
+    for (int i = 0; i < _allVideos.length; i++) {
       if (_disposed) break;
       
       try {
-        final postId = widget.videos[i]['id'];
+        final postId = _allVideos[i]['id'];
         print('[DEBUG] Loading counts for video $i, postId: $postId');
         final response = await _apiService.getInteractionCounts(postId);
         print('[DEBUG] Interaction counts response for video $i: ${response.data}');
@@ -334,6 +395,178 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         setState(() {});
       }
     });
+    
+    // Load more videos if near the end (5 videos before the end for better UX)
+    if (index >= _allVideos.length - 5 && !_isLoadingMoreVideos && _hasMoreVideos) {
+      _loadMoreVideos();
+    }
+  }
+  
+  String? _detectVideoType() {
+    if (_allVideos.isEmpty) return null;
+    
+    final firstVideo = _allVideos[0];
+    final postType = firstVideo['post_type'];
+    
+    if (postType is Map<String, dynamic>) {
+      final typeName = postType['name']?.toString().toLowerCase() ?? '';
+      if (typeName.contains('tube_short') || typeName == 'tube short') return 'tube_short';
+      if (typeName.contains('tube_max') || typeName == 'tube max') return 'tube_max';
+      if (typeName.contains('tube_prime') || typeName == 'tube prime') return 'tube_prime';
+    }
+    
+    final typeName = postType?.toString().toLowerCase() ?? '';
+    if (typeName.contains('tube_short') || typeName.contains('short')) return 'tube_short';
+    if (typeName.contains('tube_max') || typeName.contains('max')) return 'tube_max';
+    if (typeName.contains('tube_prime') || typeName.contains('prime')) return 'tube_prime';
+    
+    return null;
+  }
+
+  List<Map<String, dynamic>> _extractPosts(dynamic payload) {
+    if (payload == null) return [];
+    
+    if (payload is List) {
+      return payload.cast<Map<String, dynamic>>();
+    }
+    
+    if (payload is Map<String, dynamic>) {
+      if (payload.containsKey('data')) {
+        final data = payload['data'];
+        if (data is List) {
+          return data.cast<Map<String, dynamic>>();
+        }
+      }
+      if (payload.containsKey('posts')) {
+        final posts = payload['posts'];
+        if (posts is List) {
+          return posts.cast<Map<String, dynamic>>();
+        }
+      }
+    }
+    
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> _loadMoreVideosFromAPI(int page) async {
+    final videoType = _detectVideoType();
+    if (videoType == null) return [];
+    
+    try {
+      Response response;
+      switch (videoType) {
+        case 'tube_short':
+          response = await _apiService.getTubeShortPosts(page: page, limit: 12);
+          break;
+        case 'tube_max':
+          response = await _apiService.getTubeMaxPosts(page: page, limit: 12);
+          break;
+        case 'tube_prime':
+          response = await _apiService.getTubePrimePosts(page: page, limit: 12);
+          break;
+        default:
+          return [];
+      }
+      
+      if (response.data['success'] == true) {
+        return _extractPosts(response.data['data']);
+      }
+      return [];
+    } catch (e) {
+      print('[ERROR] Error loading more videos from API: $e');
+      return [];
+    }
+  }
+  
+  Future<void> _loadMoreVideos() async {
+    if (_isLoadingMoreVideos || !_hasMoreVideos) return;
+    
+    setState(() {
+      _isLoadingMoreVideos = true;
+    });
+    
+    try {
+      final nextPage = _currentVideoPage + 1;
+      List<Map<String, dynamic>> newVideos;
+      
+      // Use provided callback if available, otherwise use default API loading
+      if (widget.loadMoreVideos != null) {
+        newVideos = await widget.loadMoreVideos!(nextPage);
+      } else {
+        newVideos = await _loadMoreVideosFromAPI(nextPage);
+      }
+      
+      if (newVideos.isEmpty) {
+        setState(() {
+          _hasMoreVideos = false;
+          _isLoadingMoreVideos = false;
+        });
+        return;
+      }
+      
+      // If we got fewer videos than expected, we've reached the end
+      if (newVideos.length < 12) {
+        _hasMoreVideos = false;
+      }
+      
+      if (!_disposed) {
+        final startIndex = _allVideos.length;
+        _allVideos.addAll(newVideos);
+        
+        // Extend all arrays
+        _liked.addAll(List.generate(newVideos.length, (_) => false));
+        _likeCounts.addAll(List.generate(newVideos.length, (_) => 0));
+        _saved.addAll(List.generate(newVideos.length, (_) => false));
+        _saveCounts.addAll(List.generate(newVideos.length, (_) => 0));
+        _commentCounts.addAll(List.generate(newVideos.length, (_) => 0));
+        _isPlaying.addAll(List.generate(newVideos.length, (_) => false));
+        _following.addAll(List.generate(newVideos.length, (_) => false));
+        _followLoading.addAll(List.generate(newVideos.length, (_) => false));
+        _likeLoading.addAll(List.generate(newVideos.length, (_) => false));
+        _saveLoading.addAll(List.generate(newVideos.length, (_) => false));
+        _likeTapped.addAll(List.generate(newVideos.length, (_) => false));
+        _saveTapped.addAll(List.generate(newVideos.length, (_) => false));
+        _videoControllers.addAll(List.generate(newVideos.length, (_) => null));
+        
+        setState(() {
+          _currentVideoPage = nextPage;
+          _isLoadingMoreVideos = false;
+        });
+        
+        // Load interaction counts for new videos
+        for (int i = startIndex; i < _allVideos.length; i++) {
+          if (_disposed) break;
+          try {
+            final postId = _allVideos[i]['id'];
+            final response = await _apiService.getInteractionCounts(postId);
+            if (!_disposed && response.data['success']) {
+              final data = response.data['data'];
+              final counts = data['counts'] ?? {};
+              final userInteractions = data['user_interactions'] ?? {};
+              setState(() {
+                _likeCounts[i] = counts['likes'] ?? 0;
+                _commentCounts[i] = counts['comments'] ?? 0;
+                _saveCounts[i] = counts['saves'] ?? 0;
+                _liked[i] = userInteractions['liked'] ?? false;
+                _saved[i] = userInteractions['saved'] ?? false;
+                if (userInteractions.containsKey('following')) {
+                  _following[i] = _toBool(userInteractions['following']) ?? false;
+                }
+              });
+            }
+          } catch (e) {
+            print('[ERROR] Error loading interaction counts for new video $i: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('[ERROR] Error loading more videos: $e');
+      if (!_disposed) {
+        setState(() {
+          _isLoadingMoreVideos = false;
+        });
+      }
+    }
   }
 
   void _seekVideo(int index, Duration offset) {
@@ -359,7 +592,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   }
 
   void _toggleLike(int index) async {
-    if (_disposed || _likeLoading[index]) return; // Prevent multiple calls
+    if (_disposed) return; // Prevent calls if disposed
     
     print('[DEBUG] Toggling like for video $index');
     
@@ -377,18 +610,19 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
       }
     });
     
-    // Immediate UI feedback
+    // Immediate UI feedback - update instantly
     final previousLiked = _liked[index];
     final previousCount = _likeCounts[index];
     
     setState(() {
-      _likeLoading[index] = true;
       _liked[index] = !_liked[index]; // Toggle immediately
       _likeCounts[index] = _liked[index] ? previousCount + 1 : previousCount - 1; // Update count immediately
     });
     
+    // Backend call happens in background asynchronously
+    Future(() async {
     try {
-      final postId = widget.videos[index]['id'];
+      final postId = _allVideos[index]['id'];
       print('[DEBUG] Calling toggleLike API for postId: $postId');
       final response = await _apiService.toggleLike(postId);
       print('[DEBUG] Toggle like response: ${response.data}');
@@ -397,9 +631,8 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         final data = response.data['data'];
         
         setState(() {
-          _liked[index] = data['liked'] ?? false;
-          _likeCounts[index] = data['like_count'] ?? 0;
-          _likeLoading[index] = false;
+            _liked[index] = data['liked'] ?? _liked[index];
+            _likeCounts[index] = data['like_count'] ?? _likeCounts[index];
         });
         print('[DEBUG] Like toggled successfully - is_liked: ${_liked[index]}, count: ${_likeCounts[index]}');
       } else {
@@ -409,7 +642,6 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
           setState(() {
             _liked[index] = previousLiked;
             _likeCounts[index] = previousCount;
-            _likeLoading[index] = false;
           });
         }
       }
@@ -420,14 +652,14 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         setState(() {
           _liked[index] = previousLiked;
           _likeCounts[index] = previousCount;
-          _likeLoading[index] = false;
         });
       }
     }
+    });
   }
 
   void _toggleSave(int index) async {
-    if (_disposed || _saveLoading[index]) return; // Prevent multiple calls
+    if (_disposed) return; // Prevent calls if disposed
     
     print('[DEBUG] Toggling save for video $index');
     
@@ -445,18 +677,19 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
       }
     });
     
-    // Immediate UI feedback
+    // Immediate UI feedback - update instantly
     final previousSaved = _saved[index];
     final previousCount = _saveCounts[index];
     
     setState(() {
-      _saveLoading[index] = true;
       _saved[index] = !_saved[index]; // Toggle immediately
       _saveCounts[index] = _saved[index] ? previousCount + 1 : previousCount - 1; // Update count immediately
     });
     
+    // Backend call happens in background asynchronously
+    Future(() async {
     try {
-      final postId = widget.videos[index]['id'];
+      final postId = _allVideos[index]['id'];
       print('[DEBUG] Calling toggleSave API for postId: $postId');
       final response = await _apiService.toggleSave(postId);
       print('[DEBUG] Toggle save response: ${response.data}');
@@ -465,8 +698,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         final data = response.data['data'];
         
         setState(() {
-          _saved[index] = data['saved'] ?? false;
-          _saveLoading[index] = false;
+            _saved[index] = data['saved'] ?? _saved[index];
         });
         print('[DEBUG] Save toggled successfully - is_saved: ${_saved[index]}');
         
@@ -479,7 +711,6 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
           setState(() {
             _saved[index] = previousSaved;
             _saveCounts[index] = previousCount;
-            _saveLoading[index] = false;
           });
         }
       }
@@ -490,17 +721,17 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         setState(() {
           _saved[index] = previousSaved;
           _saveCounts[index] = previousCount;
-          _saveLoading[index] = false;
         });
       }
     }
+    });
   }
 
   Future<void> _refreshSaveCount(int index) async {
     if (_disposed) return;
     
     try {
-      final postId = widget.videos[index]['id'];
+      final postId = _allVideos[index]['id'];
       final response = await _apiService.getInteractionCounts(postId);
       
       if (!_disposed && response.data['success']) {
@@ -530,7 +761,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     modalSetState?.call(() {});
     
     try {
-      final postId = widget.videos[_currentPage]['id'];
+      final postId = _allVideos[_currentPage]['id'];
       print('[DEBUG] Calling getComments API for postId: $postId');
       final response = await _apiService.getComments(postId);
       print('[DEBUG] Get comments response: ${response.data}');
@@ -604,7 +835,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     _commentController.clear();
     
     try {
-      final postId = widget.videos[_currentPage]['id'];
+      final postId = _allVideos[_currentPage]['id'];
       final response = await _apiService.addComment(postId, content);
       
       if (!_disposed && response.data['success']) {
@@ -692,7 +923,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     controller.clear();
     
     try {
-      final postId = widget.videos[_currentPage]['id'];
+      final postId = _allVideos[_currentPage]['id'];
       final response = await _apiService.addCommentReply(postId, content, commentId);
       
       if (!_disposed && response.data['success']) {
@@ -717,8 +948,8 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
 
 
   void _applyInitialUserState() {
-    for (int i = 0; i < widget.videos.length; i++) {
-      _following[i] = _extractBoolFromPost(widget.videos[i], const [
+    for (int i = 0; i < _allVideos.length; i++) {
+      _following[i] = _extractBoolFromPost(_allVideos[i], const [
         'is_following',
         'following',
         'isFollowing',
@@ -727,8 +958,8 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   }
 
   void _applyInitialInteractionState() {
-    for (int i = 0; i < widget.videos.length; i++) {
-      final post = widget.videos[i];
+    for (int i = 0; i < _allVideos.length; i++) {
+      final post = _allVideos[i];
       _likeCounts[i] = _extractCountFromPost(post, const [
         'likes',
         'like_count',
@@ -765,11 +996,11 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
 
   Future<void> _checkFollowStatus(int index) async {
     if (_disposed) return;
-    if (index < 0 || index >= widget.videos.length) return;
+    if (index < 0 || index >= _allVideos.length) return;
     if (index >= _following.length) return;
     if (_followLoading[index]) return;
 
-    final video = widget.videos[index];
+    final video = _allVideos[index];
     final user = video['user'];
     if (user is! Map<String, dynamic>) return;
     final username = user['username']?.toString();
@@ -792,10 +1023,10 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
 
   void _toggleFollowUser(int index) {
     if (_disposed) return;
-    if (index < 0 || index >= widget.videos.length) return;
+    if (index < 0 || index >= _allVideos.length) return;
     if (_followLoading[index]) return;
 
-    final user = widget.videos[index]['user'];
+    final user = _allVideos[index]['user'];
     if (user is! Map<String, dynamic>) return;
     final userId = _extractUserId(user);
     if (userId == null) return;
@@ -827,10 +1058,6 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   }
 
   void _showComments() {
-    final bool hasInitialComments =
-        _currentPage < _commentCounts.length && _commentCounts[_currentPage] > 0;
-    bool hasScheduledLoad = false;
-    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -849,19 +1076,15 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
             builder: (context, scrollController) {
               return StatefulBuilder(
                 builder: (context, setModalState) {
-                  if (hasInitialComments && !hasScheduledLoad) {
-                    hasScheduledLoad = true;
+                  // Always load comments when modal opens
+                  if (!_commentsLoading && _comments.isEmpty) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!_commentsLoading) {
                         _loadComments(setModalState);
-                      }
                     });
                   }
 
                   Widget commentsBody;
-                  if (!hasInitialComments) {
-                    commentsBody = _buildNoCommentsView();
-                  } else if (_commentsLoading) {
+                  if (_commentsLoading) {
                     commentsBody = _buildCommentsLoadingSkeleton(context, scrollController);
                   } else if (_comments.isEmpty) {
                     commentsBody = _buildNoCommentsView();
@@ -1476,12 +1699,12 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     
     print('[DEBUG] Sharing video $index');
     try {
-      final postId = widget.videos[index]['id'];
+      final postId = _allVideos[index]['id'];
       print('[DEBUG] Calling share API for postId: $postId');
       await _apiService.share(postId);
       print('[DEBUG] Share API call successful');
       
-      final url = widget.videos[index]['media_files']?[0]?['file_path']?.toString() ?? '';
+      final url = _allVideos[index]['media_files']?[0]?['file_path']?.toString() ?? '';
       if (url.isNotEmpty) {
         Share.share(url);
       } else {
@@ -1490,7 +1713,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     } catch (e) {
       print('[ERROR] Error sharing video $index: $e');
       // Still share even if API call fails
-      final url = widget.videos[index]['media_files']?[0]?['file_path']?.toString() ?? '';
+      final url = _allVideos[index]['media_files']?[0]?['file_path']?.toString() ?? '';
       if (url.isNotEmpty) {
         Share.share(url);
       } else {
@@ -1525,11 +1748,16 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
       );
     }
     
-    final currentVideo = widget.videos[_currentPage];
-    final currentUser = currentVideo['user'] is Map<String, dynamic>
-        ? currentVideo['user'] as Map<String, dynamic>
-        : null;
-    final displayName = _getUserDisplayName(currentUser);
+    if (_allVideos.isEmpty || _currentPage >= _allVideos.length) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF232323),
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+          ),
+        ),
+      );
+    }
 
     return PopScope(
       canPop: true,
@@ -1543,138 +1771,15 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         child: Column(
           children: [
             // Top Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                children: [
-                  const Text('Tajify', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white)),
-                  const Spacer(),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.search, color: Colors.white, size: 20),
-                    onPressed: () => context.push('/search'),
-                  ),
-                  Stack(
-                    children: [
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                        icon: const Icon(Icons.notifications_none, color: Colors.white, size: 20),
-                        onPressed: () {
-                          context.push('/notifications').then((_) {
-                            // Refresh unread count when returning from notifications
-                            _loadNotificationUnreadCount();
-                          });
-                        },
-                      ),
-                      if (_notificationUnreadCount > 0)
-                        Positioned(
-                          right: 6,
-                          top: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 12,
-                              minHeight: 12,
-                            ),
-                            child: _notificationUnreadCount > 99
-                                ? const Text(
-                                    '99+',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 7,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  )
-                                : Text(
-                                    _notificationUnreadCount.toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  Stack(
-                    children: [
-                      IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                        icon: const Icon(Icons.message_outlined, color: Colors.white, size: 20),
-                        onPressed: () {
-                          context.push('/messages').then((_) {
-                            // Refresh unread count when returning from messages
-                            _initializeFirebaseAndLoadMessagesCount();
-                          });
-                        },
-                      ),
-                      if (_messagesUnreadCount > 0)
-                        Positioned(
-                          right: 6,
-                          top: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 12,
-                              minHeight: 12,
-                            ),
-                            child: _messagesUnreadCount > 99
-                                ? const Text(
-                                    '99+',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 7,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  )
-                                : Text(
-                                    _messagesUnreadCount.toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  Container(
-                    height: 24,
-                    width: 1.2,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    color: Colors.grey[600],
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 20),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                    icon: const Icon(Icons.person_outline, color: Colors.white, size: 20),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
+            TajifyTopBar(
+              onSearch: () => context.push('/search'),
+              onNotifications: () => context.push('/notifications').then((_) => _loadNotificationUnreadCount()),
+              onMessages: () => context.push('/messages').then((_) => _initializeFirebaseAndLoadMessagesCount()),
+              onAvatarTap: () => context.go('/profile'),
+              notificationCount: _notificationUnreadCount,
+              messageCount: _messagesUnreadCount,
+              avatarUrl: _currentUserAvatar,
+              displayLetter: _currentUserInitial,
             ),
             // Main Content (video + overlays)
             Expanded(
@@ -1682,8 +1787,13 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
                 controller: _pageController,
                 scrollDirection: Axis.vertical,
                 onPageChanged: _onPageChanged,
-                itemCount: widget.videos.length,
+                itemCount: _allVideos.length + (_isLoadingMoreVideos ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (index >= _allVideos.length) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.amber),
+                    );
+                  }
                   final controller = _videoControllers[index];
                   
                   return AnimatedBuilder(
@@ -1797,15 +1907,144 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
                                   ),
                                 ),
                               ),
+                              // User info overlaid above description
+                              Positioned(
+                                left: 12,
+                                bottom: 50,
+                                child: Builder(
+                                  builder: (context) {
+                                    final video = _allVideos[index];
+                                    final user = video['user'] is Map<String, dynamic>
+                                        ? video['user'] as Map<String, dynamic>
+                                        : null;
+                                    final userName = _getUserDisplayName(user);
+                                    
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                                            final username = user?['username']?.toString();
+                      if (username != null && username.isNotEmpty) {
+                        context.go('/user/$username');
+                      }
+                    },
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                                              _buildUserAvatar(user),
+                        Positioned(
+                          bottom: -4,
+                          right: -4,
+                                                child: _buildFollowButton(index, user),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                                            final username = user?['username']?.toString();
+                      if (username != null && username.isNotEmpty) {
+                        context.go('/user/$username');
+                      }
+                    },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(0.6),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                        child: Text(
+                                              userName,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                          maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
                               // Video description bar
                               Positioned(
                                 left: 0,
                                 right: 0,
                                 bottom: 0,
                                 child: _VideoDescriptionBar(
-                                  description: widget.videos[index]['description'] ?? '',
+                                  description: _allVideos[index]['description'] ?? '',
                                 ),
                               ),
+                              // Interaction buttons overlaid on the right side of video
+                              Positioned(
+                                right: 12,
+                                bottom: 80,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                  GestureDetector(
+                                      onTap: () => _toggleLike(index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      transform: Matrix4.identity()..scale(
+                                          _likeTapped[index] ? 0.8 : 1.0
+                      ),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                                          opacity: 1.0,
+                        child: _iconStatColumn(
+                                            _liked[index] ? Icons.favorite : Icons.favorite_border,
+                                            _formatCount(_likeCounts[index]),
+                                            color: _liked[index] ? const Color(0xFFB875FB) : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                                    const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _showComments,
+                                      child: _iconStatColumn(Icons.message_outlined, _formatCount(_commentCounts[index])),
+                  ),
+                                    const SizedBox(height: 16),
+                  GestureDetector(
+                                      onTap: () => _toggleSave(index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      transform: Matrix4.identity()..scale(
+                                          _saveTapped[index] ? 0.8 : 1.0
+                      ),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                                          opacity: 1.0,
+                        child: _iconStatColumn(
+                                            _saved[index] ? Icons.bookmark : Icons.bookmark_border,
+                                            _formatCount(_saveCounts[index]),
+                                            color: _saved[index] ? const Color(0xFFB875FB) : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                                    const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _showGiftModalForCurrentVideo,
+                    child: _iconStatColumn(Icons.card_giftcard, 'Gift'),
+                  ),
+                                    const SizedBox(height: 16),
+                  GestureDetector(
+                                      onTap: () => _share(index),
+                    child: _iconStatColumn(Icons.share_outlined, 'Share'),
+                  ),
+                ],
+              ),
+            ),
                             ],
                           ),
                         ),
@@ -1815,110 +2054,8 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
                 },
               ),
             ),
-            // User info & actions
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      final username = currentUser?['username']?.toString();
-                      if (username != null && username.isNotEmpty) {
-                        context.go('/user/$username');
-                      }
-                    },
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        _buildUserAvatar(currentUser),
-                        Positioned(
-                          bottom: -4,
-                          right: -4,
-                          child: _buildFollowButton(_currentPage, currentUser),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      final username = currentUser?['username']?.toString();
-                      if (username != null && username.isNotEmpty) {
-                        context.go('/user/$username');
-                      }
-                    },
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.3,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          displayName,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _likeLoading[_currentPage] ? null : () => _toggleLike(_currentPage),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      transform: Matrix4.identity()..scale(
-                        _likeTapped[_currentPage] ? 0.8 : 
-                        _likeLoading[_currentPage] ? 0.9 : 1.0
-                      ),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 150),
-                        opacity: _likeLoading[_currentPage] ? 0.7 : 1.0,
-                        child: _iconStatColumn(
-                          _liked[_currentPage] ? Icons.favorite : Icons.favorite_border,
-                          _formatCount(_likeCounts[_currentPage]),
-                          color: _liked[_currentPage] ? Colors.amber : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: _showComments,
-                    child: _iconStatColumn(Icons.message_outlined, _formatCount(_commentCounts[_currentPage])),
-                  ),
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: _saveLoading[_currentPage] ? null : () => _toggleSave(_currentPage),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      transform: Matrix4.identity()..scale(
-                        _saveTapped[_currentPage] ? 0.8 : 
-                        _saveLoading[_currentPage] ? 0.9 : 1.0
-                      ),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 150),
-                        opacity: _saveLoading[_currentPage] ? 0.7 : 1.0,
-                        child: _iconStatColumn(
-                          _saved[_currentPage] ? Icons.bookmark : Icons.bookmark_border,
-                          _formatCount(_saveCounts[_currentPage]),
-                          color: _saved[_currentPage] ? Colors.amber : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: _showGiftModalForCurrentVideo,
-                    child: _iconStatColumn(Icons.card_giftcard, 'Gift'),
-                  ),
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: () => _share(_currentPage),
-                    child: _iconStatColumn(Icons.share_outlined, 'Share'),
-                  ),
-                ],
-              ),
-            ),
+            // Video progress bar
+            _buildVideoProgressBar(),
           ],
         ),
       ),
@@ -1926,19 +2063,60 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     );
   }
 
+  Widget _buildVideoProgressBar() {
+    final controller = _videoControllers[_currentPage];
+    if (controller == null || !controller.value.isInitialized) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+      child: ValueListenableBuilder(
+        valueListenable: controller,
+        builder: (context, VideoPlayerValue value, child) {
+          if (!value.isInitialized || value.duration == Duration.zero) {
+            return const SizedBox.shrink();
+          }
+
+          return SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFFB875FB),
+              inactiveTrackColor: Colors.white.withOpacity(0.3),
+              thumbColor: const Color(0xFFB875FB),
+              overlayColor: const Color(0xFFB875FB).withOpacity(0.2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 2),
+              trackHeight: 1,
+            ),
+            child: Slider(
+              value: value.position.inMilliseconds.toDouble().clamp(0.0, value.duration.inMilliseconds.toDouble()),
+              min: 0,
+              max: value.duration.inMilliseconds.toDouble(),
+              onChanged: (newValue) {
+                if (value.isInitialized) {
+                  controller.seekTo(Duration(milliseconds: newValue.toInt()));
+                }
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
   Widget _iconStatColumn(IconData icon, String stat, {Color color = Colors.white}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 1),
-        Text(stat, style: TextStyle(color: color, fontSize: 10)),
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 4),
+        Text(stat, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w500)),
       ],
     );
   }
 
   Widget _buildUserAvatar(Map<String, dynamic>? user, {double radius = 22}) {
-    final avatarUrl = _getProfileImageUrl(user, widget.videos[_currentPage]);
+    final avatarUrl = _getProfileImageUrl(user, _allVideos[_currentPage]);
     final letter = _getUserInitial(user);
     return CircleAvatar(
       radius: radius,
@@ -1968,8 +2146,8 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     if (userId == null) return const SizedBox.shrink();
     
     // Check if we need to load follow status from API
-    if (index < widget.videos.length && !_followLoading[index]) {
-      final post = widget.videos[index];
+    if (index < _allVideos.length && !_followLoading[index]) {
+      final post = _allVideos[index];
       final postUser = post['user'];
       if (postUser is Map<String, dynamic>) {
         final username = postUser['username']?.toString();
@@ -2407,8 +2585,8 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
   }
 
   void _showGiftModalForCurrentVideo() {
-    if (_currentPage >= widget.videos.length) return;
-    final post = widget.videos[_currentPage];
+    if (_currentPage >= _allVideos.length) return;
+    final post = _allVideos[_currentPage];
     final user = post['user'];
     if (user is! Map<String, dynamic>) {
       ScaffoldMessenger.of(context).showSnackBar(

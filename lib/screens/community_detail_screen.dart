@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/firebase_service.dart';
@@ -566,7 +567,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Left community'),
-              backgroundColor: Colors.orange,
+              backgroundColor: Color(0xFFB875FB),
             ),
           );
         }
@@ -614,15 +615,67 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
 
     try {
       // First, send to API (for backend storage and media upload)
+      Response? response;
       if (_selectedFile != null) {
-        await _apiService.sendCommunityMessage(
+        print('[COMMUNITY] Sending media message...');
+        response = await _apiService.sendCommunityMessage(
           widget.communityUuid,
           content: _messageController.text.trim().isNotEmpty ? _messageController.text.trim() : null,
           media: _selectedFile,
         );
-        // Note: API response should contain media_url, but we'll get it from Firebase listener
+        print('[COMMUNITY] Media API response status: ${response.statusCode}');
+        
+        // Extract media_url and media_type from API response
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final data = response.data;
+          if (data['success'] == true && data['data'] != null) {
+            final messageData = data['data'];
+            mediaUrl = messageData['media_url']?.toString();
+            mediaType = messageData['media_type']?.toString();
+            
+            print('[COMMUNITY] Extracted mediaUrl: $mediaUrl, mediaType: $mediaType');
+            
+            // Determine media type from file if not provided
+            if (mediaType == null) {
+              final fileName = _selectedFile!.path.toLowerCase();
+              if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || 
+                  fileName.endsWith('.png') || fileName.endsWith('.gif')) {
+                mediaType = 'image';
+              } else if (fileName.endsWith('.mp4') || fileName.endsWith('.mov') || 
+                         fileName.endsWith('.avi')) {
+                mediaType = 'video';
+              } else if (fileName.endsWith('.mp3') || fileName.endsWith('.wav')) {
+                mediaType = 'audio';
+              } else {
+                mediaType = 'file';
+              }
+            }
+          } else {
+            print('[COMMUNITY] API response indicates failure: ${data['message'] ?? 'Unknown error'}');
+          }
+        } else {
+          print('[COMMUNITY] API returned non-success status: ${response.statusCode}');
+          print('[COMMUNITY] Response data: ${response.data}');
+        }
+        
+        // If media upload failed, return early (like normal messages do)
+        if (mediaUrl == null) {
+          print('[COMMUNITY] ❌ No media_url returned from API response');
+          setState(() {
+            _sendingMessage = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to upload media. Please try again.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
       } else if (_messageController.text.trim().isNotEmpty) {
-        await _apiService.sendCommunityMessage(
+        response = await _apiService.sendCommunityMessage(
           widget.communityUuid,
           content: _messageController.text.trim(),
         );
@@ -711,7 +764,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
           ),
           child: const Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
             ),
           ),
         ),
@@ -798,7 +851,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
-                                colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                               ),
                             ),
                             child: Icon(
@@ -814,7 +867,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                            colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                           ),
                         ),
                         child: Icon(
@@ -860,7 +913,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                  colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -1004,7 +1057,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
@@ -1120,7 +1173,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                                       )
                                                     : CircleAvatar(
                                                         radius: 18,
-                                                        backgroundColor: const Color(0xFFFFB800),
+                                                        backgroundColor: const Color(0xFFB875FB),
                                                         child: Text(
                                                           _getUserInitial(user),
                                                           style: const TextStyle(
@@ -1141,7 +1194,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                                       ? const LinearGradient(
                                                           begin: Alignment.topLeft,
                                                           end: Alignment.bottomRight,
-                                                          colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                                          colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                                         )
                                                       : null,
                                                   color: isMe ? null : Colors.white.withOpacity(0.08),
@@ -1160,7 +1213,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                                   boxShadow: [
                                                     BoxShadow(
                                                       color: isMe
-                                                          ? Colors.amber.withOpacity(0.3)
+                                                          ? Color(0xFFB875FB).withOpacity(0.3)
                                                           : Colors.black.withOpacity(0.2),
                                                       blurRadius: 12,
                                                       spreadRadius: 0,
@@ -1310,7 +1363,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                                       )
                                                     : CircleAvatar(
                                                         radius: 18,
-                                                        backgroundColor: const Color(0xFFFFB800),
+                                                        backgroundColor: const Color(0xFFB875FB),
                                                         child: Text(
                                                           _getUserInitial(user),
                                                           style: const TextStyle(
@@ -1380,10 +1433,10 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFFB800).withOpacity(0.2),
+                                      color: const Color(0xFFB875FB).withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(Icons.attach_file, color: Color(0xFFFFB800), size: 20),
+                                    child: const Icon(Icons.attach_file, color: Color(0xFFB875FB), size: 20),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -1491,12 +1544,12 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                   gradient: const LinearGradient(
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
-                                    colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                                    colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
                                   ),
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.amber.withOpacity(0.4),
+                                      color: Color(0xFFB875FB).withOpacity(0.4),
                                       blurRadius: 12,
                                       spreadRadius: 0,
                                     ),
@@ -1640,7 +1693,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                     child: _loadingMembers
                         ? const Center(
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
                             ),
                           )
                         : _members.isEmpty
@@ -1663,7 +1716,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                             onBackgroundImageError: (_, __) {},
                                           )
                                         : CircleAvatar(
-                                            backgroundColor: const Color(0xFFFFB800),
+                                            backgroundColor: const Color(0xFFB875FB),
                                             child: Text(
                                               _getUserInitial(member),
                                               style: const TextStyle(
@@ -1683,7 +1736,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> {
                                     trailing: member['role'] == 'admin' || member['role'] == 'owner'
                                         ? Icon(
                                             Icons.star,
-                                            color: Colors.amber,
+                                            color: Color(0xFFB875FB),
                                             size: 20,
                                           )
                                         : null,

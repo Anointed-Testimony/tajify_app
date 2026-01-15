@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+const Color _primaryColor = Color(0xFFCA24A5);
+const Color _primaryColorLight = Color(0xFFE84BC4);
+
 class TajifyTopBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBackButton;
   final VoidCallback? onBack;
@@ -35,13 +38,19 @@ class TajifyTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.showSearch = true,
     this.showNotifications = true,
     this.showMessages = true,
-    this.showAddButton = true,
+    this.showAddButton = false,
     this.showAvatar = true,
     this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
   });
 
   @override
   Widget build(BuildContext context) {
+    // Debug logging
+    debugPrint('🔍 TajifyTopBar - avatarUrl: $avatarUrl');
+    debugPrint('🔍 TajifyTopBar - avatarUrl is null: ${avatarUrl == null}');
+    debugPrint('🔍 TajifyTopBar - avatarUrl isEmpty: ${avatarUrl?.isEmpty ?? true}');
+    debugPrint('🔍 TajifyTopBar - displayLetter: $displayLetter');
+    
     return SafeArea(
       bottom: false,
       child: Padding(
@@ -81,17 +90,12 @@ class TajifyTopBar extends StatelessWidget implements PreferredSizeWidget {
                 count: messageCount,
                 onTap: onMessages,
               ),
-            if (showAddButton || showAvatar)
+            if (showAvatar)
               Container(
                 height: 24,
                 width: 1.2,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 color: Colors.grey[600],
-              ),
-            if (showAddButton)
-              _iconButton(
-                icon: Icons.add,
-                onTap: onAdd,
               ),
             if (showAvatar)
               GestureDetector(
@@ -102,34 +106,86 @@ class TajifyTopBar extends StatelessWidget implements PreferredSizeWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFFFB800), Color(0xFFFF8C00)],
+                      colors: [_primaryColor, _primaryColorLight],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.amber.withOpacity(0.3),
+                        color: _primaryColor.withOpacity(0.3),
                         blurRadius: 8,
                         spreadRadius: 0,
                       ),
                     ],
                   ),
-                  child: avatarUrl != null && avatarUrl!.isNotEmpty
-                      ? CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.transparent,
-                          backgroundImage: NetworkImage(avatarUrl!),
-                        )
-                      : CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.transparent,
-                          child: Text(
-                            displayLetter.isNotEmpty ? displayLetter[0].toUpperCase() : 'U',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                  child: ClipOval(
+                    child: avatarUrl != null && avatarUrl!.isNotEmpty
+                        ? Image.network(
+                            avatarUrl!,
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) {
+                                debugPrint('✅ TajifyTopBar - Image loaded successfully: $avatarUrl');
+                                return child;
+                              }
+                              debugPrint('⏳ TajifyTopBar - Loading image: $avatarUrl');
+                              return Container(
+                                width: 32,
+                                height: 32,
+                                color: Colors.transparent,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              debugPrint('❌ TajifyTopBar - Image error for URL: $avatarUrl');
+                              debugPrint('❌ TajifyTopBar - Error: $error');
+                              debugPrint('❌ TajifyTopBar - StackTrace: $stackTrace');
+                              return Container(
+                                width: 32,
+                                height: 32,
+                                color: Colors.transparent,
+                                child: Center(
+                                  child: Text(
+                                    displayLetter.isNotEmpty ? displayLetter[0].toUpperCase() : 'U',
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            width: 32,
+                            height: 32,
+                            color: Colors.transparent,
+                            child: Center(
+                              child: Text(
+                                displayLetter.isNotEmpty ? displayLetter[0].toUpperCase() : 'U',
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                  ),
                 ),
               ),
           ],

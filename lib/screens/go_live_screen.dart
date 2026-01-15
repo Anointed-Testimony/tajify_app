@@ -625,7 +625,7 @@ class _GoLiveScreenState extends State<GoLiveScreen> {
       _addDebugLog('ERROR joining with simplified channel: $e4');
     }
     
-    throw Exception('All join attempts failed. Last error: ${lastError ?? "Unknown error"}. Check Agora console settings and network connection.');
+    throw Exception('All join attempts failed. Last error: $lastError. Check Agora console settings and network connection.');
   }
 
   Future<void> _refreshToken() async {

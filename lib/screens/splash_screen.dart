@@ -22,6 +22,9 @@ class _SplashScreenState extends State<SplashScreen>
   String _displayText = '';
   String _fullText = 'Tajify';
   int _textIndex = 0;
+  Timer? _typewriterTimer;
+  Timer? _textFadeTimer;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -61,17 +64,21 @@ class _SplashScreenState extends State<SplashScreen>
     _logoController.forward();
     
     // Start typewriter effect after logo animation
-    Timer(const Duration(milliseconds: 800), () {
-      _startTypewriter();
+    _typewriterTimer = Timer(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _startTypewriter();
+      }
     });
     
     // Start text fade-in after typewriter
-    Timer(const Duration(milliseconds: 2800), () {
-      _textController.forward();
+    _textFadeTimer = Timer(const Duration(milliseconds: 2800), () {
+      if (mounted) {
+        _textController.forward();
+      }
     });
     
     // Navigate after 5 seconds
-    Timer(const Duration(seconds: 5), () {
+    _navigationTimer = Timer(const Duration(seconds: 5), () {
       if (mounted) {
         _checkNavigation();
       }
@@ -93,8 +100,17 @@ class _SplashScreenState extends State<SplashScreen>
           // Check authentication status
           final authProvider = Provider.of<AuthProvider>(context, listen: false);
           
-          // Wait for auth initialization to complete
-          await Future.delayed(const Duration(milliseconds: 500));
+          // Wait for auth initialization to complete (with timeout)
+          int attempts = 0;
+          while (authProvider.status == AuthStatus.initial || 
+                 authProvider.status == AuthStatus.loading) {
+            await Future.delayed(const Duration(milliseconds: 100));
+            attempts++;
+            if (attempts > 50) { // 5 second timeout
+              print('Auth initialization timeout');
+              break;
+            }
+          }
           
           if (mounted) {
             if (authProvider.isAuthenticated) {
@@ -115,7 +131,12 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startTypewriter() {
-    Timer.periodic(const Duration(milliseconds: 150), (timer) {
+    _typewriterTimer?.cancel(); // Cancel any existing timer
+    _typewriterTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_textIndex < _fullText.length) {
         setState(() {
           _displayText += _fullText[_textIndex];
@@ -129,6 +150,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _typewriterTimer?.cancel();
+    _textFadeTimer?.cancel();
+    _navigationTimer?.cancel();
     _logoController.dispose();
     _textController.dispose();
     super.dispose();
@@ -172,12 +196,12 @@ class _SplashScreenState extends State<SplashScreen>
                       letterSpacing: 2.0,
                       shadows: [
                         Shadow(
-                          color: Colors.amber,
+                          color: Color(0xFFB875FB),
                           blurRadius: 15.0,
                           offset: Offset(0, 0),
                         ),
                         Shadow(
-                          color: Colors.amber,
+                          color: Color(0xFFB875FB),
                           blurRadius: 25.0,
                           offset: Offset(0, 0),
                         ),

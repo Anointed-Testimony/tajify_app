@@ -313,7 +313,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       case 'earning':
         return Colors.green;
       case 'staking':
-        return Colors.orange;
+        return Color(0xFFB875FB);
       case 'mining':
         return Colors.cyan;
       case 'referral':
