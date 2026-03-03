@@ -2,14 +2,28 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// To use a different backend URL: flutter run --dart-define=API_BASE_URL=https://your-backend.com
 class ApiService {
-  static const String baseUrl = 'https://apitajv1.digitalentshub.net/api';
+  /// Production API. Override at build time: flutter run --dart-define=API_BASE_URL=https://your-backend.com
+  static String get baseUrl {
+    const host = String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: 'https://api.tajify.com',
+    );
+    return host.endsWith('/api') ? host : '$host/api';
+  }
+
   static const String storageKey = 'auth_token';
   
   late Dio _dio;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  static bool _loggedBaseUrl = false;
 
   ApiService() {
+    if (!_loggedBaseUrl) {
+      _loggedBaseUrl = true;
+      print('🌐 [API] Using base URL: $baseUrl');
+    }
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 30),
@@ -34,8 +48,7 @@ class ApiService {
         handler.next(options);
       },
       onError: (error, handler) async {
-        // Remove automatic token deletion on 401 errors
-        // Users should only be logged out when they manually logout
+      
         handler.next(error);
       },
     ));
@@ -97,7 +110,7 @@ class ApiService {
     }
   }
 
-  Future<Response> postFormData(String path, FormData formData) async {
+  Future<Response> postFormData(String path, FormData formData, {void Function(int sent, int total)? onSendProgress}) async {
     try {
       print('=== API SERVICE DEBUG ===');
       print('Making POST request to: $baseUrl$path');
@@ -112,6 +125,7 @@ class ApiService {
             'Content-Type': 'multipart/form-data',
           },
         ),
+        onSendProgress: onSendProgress,
       );
       
       print('Response status: ${response.statusCode}');
@@ -208,7 +222,7 @@ class ApiService {
         return Exception('Request was cancelled.');
       
       case DioExceptionType.connectionError:
-        return Exception('No internet connection. Please check your network.');
+        return Exception('Could not reach the server. Check your internet connection and try again.');
       
       default:
         return Exception('An unexpected error occurred.');
@@ -250,14 +264,14 @@ class ApiService {
     return await post('/upload/get-token');
   }
 
-  Future<Response> uploadMedia(File file, String mediaType, {String? uploadToken, double? duration}) async {
+  Future<Response> uploadMedia(File file, String mediaType, {String? uploadToken, double? duration, void Function(int sent, int total)? onProgress}) async {
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(file.path),
       'media_type': mediaType,
       if (uploadToken != null) 'upload_token': uploadToken,
       if (duration != null) 'duration': duration,
     });
-    return await postFormData('/upload/media', formData);
+    return await postFormData('/upload/media', formData, onSendProgress: onProgress);
   }
 
   Future<Response> createBlog({
@@ -336,14 +350,22 @@ class ApiService {
     return await get('/posts/types');
   }
 
-  Future<Response> getPosts({String? postType, int? page, int? limit, int? userId}) async {
+  Future<Response> getPosts({String? postType, int? page, int? limit, dynamic userId}) async {
     final queryParams = <String, dynamic>{};
     if (postType != null) queryParams['post_type'] = postType;
     if (page != null) queryParams['page'] = page;
     if (limit != null) queryParams['limit'] = limit;
-    if (userId != null) queryParams['user_id'] = userId;
+    if (userId != null) queryParams['user_id'] = userId.toString();
     
     return await get('/posts', queryParameters: queryParams);
+  }
+
+  Future<Response> getHomeFeed({int page = 1, int limit = 20, String type = 'mixed'}) async {
+    return await get('/posts/feed/home', queryParameters: {
+      'page': page, 
+      'limit': limit,
+      'type': type
+    });
   }
 
   Future<Response> getTubeShortPosts({int? page, int? limit}) async {
@@ -405,9 +427,9 @@ class ApiService {
     return await delete('/posts/$postId');
   }
 
-  Future<Response> toggleFollowUser(int userId) async {
+  Future<Response> toggleFollowUser(dynamic userId) async {
     return await post('/follow/toggle', data: {
-      'user_id': userId,
+      'user_id': userId.toString(),
     });
   }
 
@@ -423,10 +445,6 @@ class ApiService {
     return await get('/follow/$username/status');
   }
 
-  Future<Response> getInteractionCounts(int postId) async {
-    return await get('/interactions/posts/$postId/counts');
-  }
-
   Future<Response> getSavedPosts({int? page}) async {
     final queryParams = <String, dynamic>{};
     if (page != null) queryParams['page'] = page;
@@ -440,16 +458,17 @@ class ApiService {
   }
 
   // Comment methods
-  Future<Response> getComments(int postId, {int? page}) async {
+  Future<Response> getComments(dynamic postId, {int? page, int? limit}) async {
     final queryParams = <String, dynamic>{};
     if (page != null) queryParams['page'] = page;
+    if (limit != null) queryParams['limit'] = limit;
     return await get('/posts/$postId/comments', queryParameters: queryParams);
   }
 
-  Future<Response> addComment(int postId, String content) async {
-    return await post('/posts/$postId/comments', data: {
-      'content': content,
-    });
+  Future<Response> addComment(dynamic postId, String content, {dynamic parentId}) async {
+    final data = <String, dynamic>{'content': content};
+    if (parentId != null) data['parent_id'] = parentId.toString();
+    return await post('/posts/$postId/comments', data: data);
   }
 
   Future<Response> updateComment(int commentId, String content) async {
@@ -458,12 +477,12 @@ class ApiService {
     });
   }
 
-  Future<Response> deleteComment(int commentId) async {
-    return await delete('/comments/$commentId');
+  Future<Response> deleteComment(dynamic commentId) async {
+    return await delete('/comments/${commentId.toString()}');
   }
 
-  Future<Response> toggleCommentLike(int commentId) async {
-    return await post('/comments/$commentId/like');
+  Future<Response> toggleCommentLike(dynamic commentId) async {
+    return await post('/comments/${commentId.toString()}/like');
   }
 
   Future<Response> getCommentReplies(int commentId, {int? page}) async {
@@ -512,6 +531,16 @@ class ApiService {
 
   Future<Response> getWallet() async {
     return await get('/wallet');
+  }
+
+  /// Node backend: initialize Paystack for Naira funding (buy TajStars). Returns authorization_url, reference.
+  Future<Response> initializeNairaFund(double amountNaira) async {
+    return await post('/wallet/fund/initialize', data: {'amount_naira': amountNaira});
+  }
+
+  /// Node backend: verify Paystack payment after user pays. Returns new_balance, taj_stars.
+  Future<Response> verifyNairaFund(String reference) async {
+    return await post('/wallet/fund/verify', data: {'reference': reference});
   }
 
   Future<Response> getWalletStats() async {
@@ -1065,21 +1094,21 @@ class ApiService {
   }
 
   Future<Response> sendGift({
-    required int giftId,
-    required int receiverId,
-    required int postId,
+    required dynamic giftId,
+    required dynamic receiverId,
+    required dynamic postId,
     int quantity = 1,
     String? message,
     bool isAnonymous = false,
   }) async {
     final data = <String, dynamic>{
-      'gift_id': giftId,
-      'receiver_id': receiverId,
-      'post_id': postId,
+      'gift_id': giftId.toString(),
+      'recipient_id': receiverId.toString(),
+      'post_id': postId.toString(),
       'quantity': quantity,
-      'message': message,
-      'is_anonymous': isAnonymous,
-    }..removeWhere((key, value) => value == null);
+      if (message != null && message.isNotEmpty) 'message': message,
+      if (isAnonymous) 'is_anonymous': isAnonymous,
+    };
     return await post('/gifts/send', data: data);
   }
 
@@ -1255,21 +1284,20 @@ class ApiService {
   }
 
   // Notification methods
-  Future<Response> getNotifications({int? limit, String? type}) async {
+  Future<Response> getNotifications({int? page, int? limit}) async {
     final queryParams = <String, dynamic>{};
-    if (limit != null) queryParams['limit'] = limit;
-    if (type != null) queryParams['type'] = type;
-    
-    return await get('/notifications', queryParameters: queryParams);
+    if (page != null) queryParams['page'] = page;
+    if (limit != null) queryParams['limit'] = limit ?? 20;
+    return await get('/notifications', queryParameters: queryParams.isNotEmpty ? queryParams : null);
   }
 
   Future<Response> getUnreadCount() async {
     return await get('/notifications/unread-count');
   }
 
-  Future<Response> markNotificationAsRead(int notificationId) async {
+  Future<Response> markNotificationAsRead(dynamic notificationId) async {
     return await post('/notifications/mark-read', data: {
-      'notification_id': notificationId,
+      'notification_id': notificationId.toString(),
     });
   }
 
@@ -1378,7 +1406,7 @@ class ApiService {
 
   // Profile methods
   Future<Response> getProfile() async {
-    return await get('/profile');
+    return await get('/auth/me');
   }
 
   Future<Response> updateProfile({
@@ -1412,9 +1440,7 @@ class ApiService {
   }
 
   Future<Response> getTopCreators({int? limit}) async {
-    final queryParams = <String, dynamic>{};
-    if (limit != null) queryParams['limit'] = limit;
-    return await get('/stats/top-creators', queryParameters: queryParams);
+    return await get('/search/suggestions');
   }
 
   Future<Response> getTrendingPosts({int? page, int? limit, String? timeframe}) async {

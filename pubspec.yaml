@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+4
 
 environment:
-  sdk: ^3.8.1
+  sdk: '>=3.5.0 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -65,7 +65,7 @@ dependencies:
   flutter_facebook_auth: ^6.0.3
   sign_in_with_apple: ^7.0.1
   share_plus: ^7.2.1
-  file_picker: ^10.2.0
+  file_picker: ^8.0.3
   
   # Secure storage
   flutter_secure_storage: ^9.0.0
@@ -83,13 +83,16 @@ dependencies:
   webview_flutter: ^4.8.0
   
   # Rich text editor
-  html_editor_enhanced: ^2.4.0
+  html_editor_enhanced: ^2.6.0
   
   # Web3 and blockchain
   web3dart: ^2.7.3
   wallet_connect_v2: ^1.0.9
   agora_rtc_engine: ^6.3.2
   permission_handler: ^11.3.1
+  firebase_messaging: ^15.2.10
+  flutter_local_notifications: ^19.5.0
+  google_fonts: ^6.3.0
 
 dev_dependencies:
   flutter_test:
@@ -100,7 +103,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.4
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -121,6 +124,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/
+    - assets/icons/
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

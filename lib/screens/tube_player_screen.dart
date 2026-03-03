@@ -18,8 +18,11 @@ class TubePlayerScreen extends StatefulWidget {
     required this.videos, 
     required this.initialIndex, 
     this.loadMoreVideos,
+    this.isEmbedded = false,
     Key? key
   }) : super(key: key);
+
+  final bool isEmbedded;
 
   @override
   State<TubePlayerScreen> createState() => _TubePlayerScreenState();
@@ -128,15 +131,14 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     // Load initial video controller
     _initializeVideoController(widget.initialIndex);
     
-    // Load current user ID
-    _loadCurrentUserId();
-    
-    // Apply initial state from incoming videos
-    _applyInitialInteractionState();
-    _applyInitialUserState();
-    
-    // Load interaction counts from API
-    _loadInteractionCounts();
+    // Load current user ID and initial data
+    _loadCurrentUserId().then((_) {
+      if (mounted) {
+        _applyInitialInteractionState();
+        _applyInitialUserState();
+        _loadInteractionCounts();
+      }
+    });
     
     // Auto-play the initial video
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -254,32 +256,29 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     // Initialize the requested controller
     if (_videoControllers[index] == null) {
       try {
-        final url = _allVideos[index]['media_files']?[0]?['file_path']?.toString() ?? '';
-        if (url.isNotEmpty) {
-          print('[DEBUG] Initializing video controller for index $index');
-          final controller = VideoPlayerController.network(url);
-          controller.setLooping(true);
-          controller.setVolume(1);
+        var url = _allVideos[index]['media_files']?[0]?['file_path']?.toString() ?? _allVideos[index]['video_url']?.toString() ?? '';
+        if (url.isEmpty) return;
+        if (!url.startsWith('http')) url = 'https://tajify.com$url';
+        final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+        controller.setLooping(true);
+        controller.setVolume(1);
+        
+        await controller.initialize();
+        
+        if (!_disposed && mounted) {
+          setState(() {
+            _videoControllers[index] = controller;
+          });
           
-          await controller.initialize();
-          
-          if (!_disposed && mounted) {
-            setState(() {
-              _videoControllers[index] = controller;
-            });
-            
-            // Auto-play if this is the current page
-            if (index == _currentPage) {
-              controller.play();
-              _isPlaying[_currentPage] = true;
-            }
-          } else {
-            // Dispose if widget was disposed during initialization
-            controller.dispose();
+          if (index == _currentPage) {
+            controller.play();
+            _isPlaying[_currentPage] = true;
           }
+        } else {
+          controller.dispose();
         }
       } catch (e) {
-        print('[ERROR] Error initializing video controller for index $index: $e');
+        if (!_disposed && mounted) setState(() {});
       }
     }
   }
@@ -298,8 +297,10 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
             i != _currentPage && 
             i != _currentPage - 1 && 
             i != _currentPage + 1) {
-          print('[DEBUG] Disposing video controller for index $i');
-          _videoControllers[i]?.dispose();
+          try {
+            _videoControllers[i]?.pause();
+            _videoControllers[i]?.dispose();
+          } catch (_) {}
           _videoControllers[i] = null;
           activeCount--;
           if (activeCount < _maxControllers) break;
@@ -314,39 +315,16 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     print('[DEBUG] Loading interaction counts for ${_allVideos.length} videos');
     for (int i = 0; i < _allVideos.length; i++) {
       if (_disposed) break;
-      
-      try {
-        final postId = _allVideos[i]['id'];
-        print('[DEBUG] Loading counts for video $i, postId: $postId');
-        final response = await _apiService.getInteractionCounts(postId);
-        print('[DEBUG] Interaction counts response for video $i: ${response.data}');
-        
-        if (!_disposed && response.data['success']) {
-          final data = response.data['data'];
-          final counts = data['counts'] ?? {};
-          final userInteractions = data['user_interactions'] ?? {};
-          
-          print('[DEBUG] Tube Player - Loading interaction counts for video $i');
-          print('[DEBUG] User interactions keys: ${userInteractions.keys.toList()}');
-          print('[DEBUG] User interactions: $userInteractions');
-          
-          setState(() {
-            _likeCounts[i] = counts['likes'] ?? 0;
-            _commentCounts[i] = counts['comments'] ?? 0;
-            _saveCounts[i] = counts['saves'] ?? 0;
-            _liked[i] = userInteractions['liked'] ?? false;
-            _saved[i] = userInteractions['saved'] ?? false;
-            if (userInteractions.containsKey('following')) {
-              _following[i] = _toBool(userInteractions['following']) ?? false;
-              print('[DEBUG] Set _following[$i] from API: ${_following[i]}');
-            } else {
-              print('[DEBUG] "following" not found in userInteractions for video $i');
-            }
-          });
-          print('[DEBUG] Updated counts for video $i - likes: ${_likeCounts[i]}, comments: ${_commentCounts[i]}, saves: ${_saveCounts[i]}, liked: ${_liked[i]}, saved: ${_saved[i]}, following: ${_following[i]}');
-        }
-      } catch (e) {
-        print('[ERROR] Error loading interaction counts for video $i: $e');
+      final v = _allVideos[i];
+      if (!_disposed && mounted) {
+        setState(() {
+          _likeCounts[i] = v['likes_count'] is int ? v['likes_count'] as int : (int.tryParse(v['likes_count']?.toString() ?? '0') ?? 0);
+          _commentCounts[i] = v['comments_count'] is int ? v['comments_count'] as int : (int.tryParse(v['comments_count']?.toString() ?? '0') ?? 0);
+          _liked[i] = v['is_liked'] == true;
+          _saved[i] = v['is_saved'] == true;
+          final user = v['user'];
+          if (user is Map) _following[i] = user['is_following'] == true;
+        });
       }
     }
   }
@@ -356,19 +334,24 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     _disposed = true;
     _notificationTimer?.cancel();
     _messagesCountSubscription?.cancel();
-    print('[DEBUG] Disposing TubePlayerScreen');
     
-    // Dispose all video controllers
+    final toDispose = <VideoPlayerController>[];
     for (int i = 0; i < _videoControllers.length; i++) {
-      if (_videoControllers[i] != null) {
-        print('[DEBUG] Disposing video controller $i');
-        _videoControllers[i]?.dispose();
+      final c = _videoControllers[i];
+      if (c != null) {
+        try { c.pause(); } catch (_) {}
+        toDispose.add(c);
         _videoControllers[i] = null;
       }
     }
     
     _pageController.dispose();
     _commentController.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final c in toDispose) {
+        try { c.dispose(); } catch (_) {}
+      }
+    });
     super.dispose();
   }
 
@@ -395,6 +378,11 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         setState(() {});
       }
     });
+
+    // Preload next video
+    if (index + 1 < _allVideos.length) {
+      _initializeVideoController(index + 1);
+    }
     
     // Load more videos if near the end (5 videos before the end for better UX)
     if (index >= _allVideos.length - 5 && !_isLoadingMoreVideos && _hasMoreVideos) {
@@ -533,29 +521,19 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
           _isLoadingMoreVideos = false;
         });
         
-        // Load interaction counts for new videos
+        // Use post data for new videos
         for (int i = startIndex; i < _allVideos.length; i++) {
           if (_disposed) break;
-          try {
-            final postId = _allVideos[i]['id'];
-            final response = await _apiService.getInteractionCounts(postId);
-            if (!_disposed && response.data['success']) {
-              final data = response.data['data'];
-              final counts = data['counts'] ?? {};
-              final userInteractions = data['user_interactions'] ?? {};
-              setState(() {
-                _likeCounts[i] = counts['likes'] ?? 0;
-                _commentCounts[i] = counts['comments'] ?? 0;
-                _saveCounts[i] = counts['saves'] ?? 0;
-                _liked[i] = userInteractions['liked'] ?? false;
-                _saved[i] = userInteractions['saved'] ?? false;
-                if (userInteractions.containsKey('following')) {
-                  _following[i] = _toBool(userInteractions['following']) ?? false;
-                }
-              });
-            }
-          } catch (e) {
-            print('[ERROR] Error loading interaction counts for new video $i: $e');
+          final v = _allVideos[i];
+          if (!_disposed && mounted) {
+            setState(() {
+              _likeCounts[i] = v['likes_count'] is int ? v['likes_count'] as int : (int.tryParse(v['likes_count']?.toString() ?? '0') ?? 0);
+              _commentCounts[i] = v['comments_count'] is int ? v['comments_count'] as int : (int.tryParse(v['comments_count']?.toString() ?? '0') ?? 0);
+              _liked[i] = v['is_liked'] == true;
+              _saved[i] = v['is_saved'] == true;
+              final user = v['user'];
+              if (user is Map) _following[i] = user['is_following'] == true;
+            });
           }
         }
       }
@@ -729,23 +707,12 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
 
   Future<void> _refreshSaveCount(int index) async {
     if (_disposed) return;
-    
     try {
-      final postId = _allVideos[index]['id'];
-      final response = await _apiService.getInteractionCounts(postId);
-      
-      if (!_disposed && response.data['success']) {
-        final data = response.data['data'];
-        final counts = data['counts'] ?? {};
-        
-        setState(() {
-          _saveCounts[index] = counts['saves'] ?? 0;
-        });
-        print('[DEBUG] Refreshed save count for video $index: ${_saveCounts[index]}');
+      final v = _allVideos[index];
+      if (v['is_saved'] != null && mounted) {
+        setState(() => _saved[index] = v['is_saved'] == true);
       }
-    } catch (e) {
-      print('[ERROR] Error refreshing save count for video $index: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadComments([StateSetter? modalSetState]) async {
@@ -1748,7 +1715,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
       );
     }
     
-    if (_allVideos.isEmpty || _currentPage >= _allVideos.length) {
+    if (_allVideos.isEmpty) {
       return const Scaffold(
         backgroundColor: Color(0xFF232323),
         body: Center(
@@ -1759,308 +1726,573 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
       );
     }
 
+    // Embed mode: just the video pager (or similar)
+    if (widget.isEmbedded) {
+      return _buildVideoPageView();
+    } 
+    
+    // Full screen mode: Scaffold with TopBar and global progress bar
     return PopScope(
-      canPop: true,
-      onPopInvoked: (didPop) {
+      canPop: false,
+      onPopInvoked: (didPop) async {
         if (didPop) return;
-        context.pop();
+        final shouldPop = await Navigator.of(context).maybePop();
+        if (!shouldPop) {
+          // Additional logic if needed
+        }
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF232323),
         body: SafeArea(
-        child: Column(
-          children: [
-            // Top Bar
-            TajifyTopBar(
-              onSearch: () => context.push('/search'),
-              onNotifications: () => context.push('/notifications').then((_) => _loadNotificationUnreadCount()),
-              onMessages: () => context.push('/messages').then((_) => _initializeFirebaseAndLoadMessagesCount()),
-              onAvatarTap: () => context.go('/profile'),
-              notificationCount: _notificationUnreadCount,
-              messageCount: _messagesUnreadCount,
-              avatarUrl: _currentUserAvatar,
-              displayLetter: _currentUserInitial,
-            ),
-            // Main Content (video + overlays)
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                scrollDirection: Axis.vertical,
-                onPageChanged: _onPageChanged,
-                itemCount: _allVideos.length + (_isLoadingMoreVideos ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= _allVideos.length) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: Colors.amber),
-                    );
-                  }
-                  final controller = _videoControllers[index];
-                  
-                  return AnimatedBuilder(
-                    animation: _pageController,
-                    builder: (context, child) {
-                      double value = 0.0;
-                      if (_pageController.position.haveDimensions) {
-                        value = _pageController.page! - index;
-                      } else if (_currentPage == index) {
-                        value = 0.0;
-                      } else {
-                        value = _currentPage - index.toDouble();
-                      }
-                      value = value.clamp(-1.0, 1.0);
-                      final double rotationY = value * 1.2; // radians
-                      final double opacity = (1 - value.abs()).clamp(0.0, 1.0);
-                      
-                      return Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.001)
-                          ..rotateY(rotationY),
-                        child: Opacity(
-                          opacity: opacity,
-                          child: Stack(
-                            children: [
-                              // Video player
-                              GestureDetector(
-                                onTap: () {
-                                  final activeController = controller;
-                                  if (!_disposed &&
-                                      activeController != null &&
-                                      activeController.value.isInitialized) {
-                                    setState(() {
-                                      if (activeController.value.isPlaying) {
-                                        activeController.pause();
-                                        _isPlaying[index] = false;
-                                      } else {
-                                        activeController.play();
-                                        _isPlaying[index] = true;
-                                      }
-                                    });
-                                  }
-                                },
-                                onDoubleTapDown: (details) {
-                                  final screenWidth = MediaQuery.of(context).size.width;
-                                  final tapX = details.globalPosition.dx;
-                                  if (tapX < screenWidth / 2) {
-                                    // Left side - seek backward 10 seconds
-                                    _seekVideo(index, const Duration(seconds: -10));
-                                  } else {
-                                    // Right side - seek forward 10 seconds
-                                    _seekVideo(index, const Duration(seconds: 10));
-                                  }
-                                },
-                                child: Center(
-                                  child: () {
-                                    final activeController = controller;
-                                    if (activeController != null &&
-                                        activeController.value.isInitialized) {
-                                      return FittedBox(
-                                        fit: BoxFit.contain,
-                                        child: SizedBox(
-                                          width: activeController.value.size.width,
-                                          height: activeController.value.size.height,
-                                          child: VideoPlayer(activeController),
-                                        ),
-                                      );
-                                    }
-                                    return const Center(
-                                      child: CircularProgressIndicator(
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
-                                      ),
-                                    );
-                                  }(),
-                                ),
-                              ),
-                              // Play/Pause icon overlay
-                              if (controller?.value.isInitialized == true &&
-                                  !(controller?.value.isPlaying ?? false))
-                                Center(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black45,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.play_arrow,
-                                      color: Colors.white,
-                                      size: 64,
-                                    ),
-                                  ),
-                                ),
-                              // Back button
-                              Positioned(
-                                top: 20,
-                                left: 20,
-                                child: GestureDetector(
-                                  onTap: () => context.pop(),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.arrow_back_ios,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // User info overlaid above description
-                              Positioned(
-                                left: 12,
-                                bottom: 50,
-                                child: Builder(
-                                  builder: (context) {
-                                    final video = _allVideos[index];
-                                    final user = video['user'] is Map<String, dynamic>
-                                        ? video['user'] as Map<String, dynamic>
-                                        : null;
-                                    final userName = _getUserDisplayName(user);
-                                    
-                                    return Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                                            final username = user?['username']?.toString();
-                      if (username != null && username.isNotEmpty) {
-                        context.go('/user/$username');
-                      }
-                    },
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                                              _buildUserAvatar(user),
-                        Positioned(
-                          bottom: -4,
-                          right: -4,
-                                                child: _buildFollowButton(index, user),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                                            final username = user?['username']?.toString();
-                      if (username != null && username.isNotEmpty) {
-                        context.go('/user/$username');
-                      }
-                    },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(0.6),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                        child: Text(
-                                              userName,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                              ),
-                          maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                              ),
-                              // Video description bar
-                              Positioned(
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                child: _VideoDescriptionBar(
-                                  description: _allVideos[index]['description'] ?? '',
-                                ),
-                              ),
-                              // Interaction buttons overlaid on the right side of video
-                              Positioned(
-                                right: 12,
-                                bottom: 80,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                  GestureDetector(
-                                      onTap: () => _toggleLike(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      transform: Matrix4.identity()..scale(
-                                          _likeTapped[index] ? 0.8 : 1.0
-                      ),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 150),
-                                          opacity: 1.0,
-                        child: _iconStatColumn(
-                                            _liked[index] ? Icons.favorite : Icons.favorite_border,
-                                            _formatCount(_likeCounts[index]),
-                                            color: _liked[index] ? const Color(0xFFB875FB) : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                                    const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: _showComments,
-                                      child: _iconStatColumn(Icons.message_outlined, _formatCount(_commentCounts[index])),
-                  ),
-                                    const SizedBox(height: 16),
-                  GestureDetector(
-                                      onTap: () => _toggleSave(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      transform: Matrix4.identity()..scale(
-                                          _saveTapped[index] ? 0.8 : 1.0
-                      ),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 150),
-                                          opacity: 1.0,
-                        child: _iconStatColumn(
-                                            _saved[index] ? Icons.bookmark : Icons.bookmark_border,
-                                            _formatCount(_saveCounts[index]),
-                                            color: _saved[index] ? const Color(0xFFB875FB) : Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                                    const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: _showGiftModalForCurrentVideo,
-                    child: _iconStatColumn(Icons.card_giftcard, 'Gift'),
-                  ),
-                                    const SizedBox(height: 16),
-                  GestureDetector(
-                                      onTap: () => _share(index),
-                    child: _iconStatColumn(Icons.share_outlined, 'Share'),
-                  ),
-                ],
+          child: Column(
+            children: [
+              TajifyTopBar(
+                onSearch: () {
+                  context.push('/search');
+                },
+                onNotifications: _loadNotificationUnreadCount,
+                onMessages: _initializeFirebaseAndLoadMessagesCount,
+                onAvatarTap: () {
+                   context.push('/profile');
+                },
+                notificationCount: _notificationUnreadCount,
+                messageCount: _messagesUnreadCount,
+                avatarUrl: _currentUserAvatar,
+                displayLetter: _currentUserInitial,
               ),
+              Expanded(
+                child: _buildYouTubeStyleBody(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// YouTube-style layout: 16:9 video at top, then scrollable title/channel/description/comments/up next.
+  Widget _buildYouTubeStyleBody() {
+    final index = _currentPage;
+    if (index < 0 || index >= _allVideos.length) return const SizedBox.shrink();
+    final video = _allVideos[index];
+    final controller = _videoControllers[index];
+    final user = video['user'] is Map<String, dynamic> ? video['user'] as Map<String, dynamic> : null;
+    final userName = _getUserDisplayName(user);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 16:9 Video area (like web TubeMaxPlayer)
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Container(
+            color: Colors.black,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (controller != null && controller.value.isInitialized)
+                  GestureDetector(
+                    onTap: () {
+                      if (controller.value.isPlaying) {
+                        controller.pause();
+                        setState(() => _isPlaying[index] = false);
+                      } else {
+                        controller.play();
+                        setState(() => _isPlaying[index] = true);
+                      }
+                    },
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: SizedBox(
+                        width: controller.value.size.width,
+                        height: controller.value.size.height,
+                        child: VideoPlayer(controller),
+                      ),
+                    ),
+                  )
+                else
+                  const Center(child: CircularProgressIndicator(color: Colors.amber)),
+                if (controller?.value.isInitialized == true && !(controller?.value.isPlaying ?? false))
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        controller?.play();
+                        setState(() => _isPlaying[index] = true);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                        child: const Icon(Icons.play_arrow, color: Colors.white, size: 56),
+                      ),
+                    ),
+                  ),
+                if (!widget.isEmbedded)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: GestureDetector(
+                      onTap: () => context.pop(),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
+                        child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildVideoProgressBarOverlay(controller),
+                ),
+              ],
             ),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                Text(
+                  video['description']?.toString() ?? video['title']?.toString() ?? 'Video',
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        final username = user?['username']?.toString();
+                        if (username != null && username.isNotEmpty) context.push('/user/$username');
+                      },
+                      child: Row(
+                        children: [
+                          _buildUserAvatar(user, post: video, radius: 20),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(userName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text('${_formatCount((user?['followers_count'] ?? user?['followers_count']) ?? 0)} subscribers', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildFollowButton(index, user),
+                    const Spacer(),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(onTap: () => _toggleLike(index), child: _iconStatColumn(_liked[index] ? Icons.favorite : Icons.favorite_border, _formatCount(_likeCounts[index]), color: _liked[index] ? const Color(0xFFB875FB) : Colors.white)),
+                          const SizedBox(width: 16),
+                          GestureDetector(onTap: _showComments, child: _iconStatColumn(Icons.comment_outlined, _formatCount(_commentCounts[index]))),
+                          const SizedBox(width: 16),
+                          GestureDetector(onTap: () => _toggleSave(index), child: _iconStatColumn(_saved[index] ? Icons.bookmark : Icons.bookmark_border, _formatCount(_saveCounts[index]), color: _saved[index] ? const Color(0xFFB875FB) : Colors.white)),
+                          const SizedBox(width: 16),
+                          GestureDetector(onTap: _showGiftModalForCurrentVideo, child: _iconStatColumn(Icons.card_giftcard, 'Gift')),
+                          const SizedBox(width: 16),
+                          GestureDetector(onTap: () => _share(index), child: _iconStatColumn(Icons.share_outlined, 'Share')),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                  child: Text(
+                    video['description']?.toString() ?? 'No description.',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text('Up next', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _allVideos.length,
+                    itemBuilder: (context, i) {
+                      if (i == index) return const SizedBox.shrink();
+                      final v = _allVideos[i];
+                      final thumb = _getThumbnailFromVideo(v);
+                      final creator = v['user'] ?? {};
+                      final name = creator['name'] ?? creator['username'] ?? 'Creator';
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: GestureDetector(
+                          onTap: () {
+                            final prev = _currentPage;
+                            if (prev >= 0 && prev < _videoControllers.length && _videoControllers[prev] != null) {
+                              _videoControllers[prev]!.pause();
+                              _isPlaying[prev] = false;
+                            }
+                            setState(() {
+                              _currentPage = i;
+                              _initializeVideoController(i);
+                              if (i < _videoControllers.length && _videoControllers[i]?.value.isInitialized == true) {
+                                _videoControllers[i]?.play();
+                                _isPlaying[i] = true;
+                              }
+                            });
+                          },
+                          child: SizedBox(
+                            width: 160,
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: SizedBox(
+                                    width: 120,
+                                    height: 68,
+                                    child: thumb != null && thumb.isNotEmpty
+                                        ? Image.network(thumb.startsWith('http') ? thumb : 'https://api.tajify.com$thumb', fit: BoxFit.cover)
+                                        : Container(color: Colors.grey[800], child: const Icon(Icons.videocam_off, color: Colors.white38)),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    v['description']?.toString() ?? v['title']?.toString() ?? 'Video',
+                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );
                     },
-                  );
-                },
-              ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-            // Video progress bar
-            _buildVideoProgressBar(),
-          ],
+          ),
         ),
-      ),
-      ),
+      ],
     );
+  }
+
+  Widget _buildVideoProgressBarOverlay(VideoPlayerController? controller) {
+    if (controller == null || !controller.value.isInitialized) return const SizedBox.shrink();
+    return ValueListenableBuilder<VideoPlayerValue>(
+      valueListenable: controller,
+      builder: (context, value, child) {
+        if (!value.isInitialized || value.duration == Duration.zero) return const SizedBox.shrink();
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black54])),
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: const Color(0xFFB875FB),
+              inactiveTrackColor: Colors.white.withOpacity(0.3),
+              thumbColor: const Color(0xFFB875FB),
+              overlayColor: const Color(0xFFB875FB).withOpacity(0.2),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+              trackHeight: 2,
+            ),
+            child: Slider(
+              value: value.position.inMilliseconds.toDouble().clamp(0.0, value.duration.inMilliseconds.toDouble()),
+              min: 0,
+              max: value.duration.inMilliseconds.toDouble(),
+              onChanged: (newValue) => controller.seekTo(Duration(milliseconds: newValue.toInt())),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String? _getThumbnailFromVideo(Map<String, dynamic> v) {
+    final mf = v['media_files'];
+    if (mf is List && mf.isNotEmpty) {
+      final m = mf.first as Map<String, dynamic>?;
+      if (m != null) return m['thumbnail_path']?.toString() ?? m['thumbnail_url']?.toString();
+    }
+    return v['thumbnail_url']?.toString() ?? v['thumbnail']?.toString();
+  }
+
+  Widget _buildVideoPageView() {
+    return PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        onPageChanged: _onPageChanged,
+        itemCount: _allVideos.length + (_isLoadingMoreVideos ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= _allVideos.length) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.amber),
+            );
+          }
+          final controller = _videoControllers[index];
+          
+          return AnimatedBuilder(
+            animation: _pageController,
+            builder: (context, child) {
+              double value = 0.0;
+              if (_pageController.position.haveDimensions) {
+                value = _pageController.page! - index;
+              } else if (_currentPage == index) {
+                value = 0.0;
+              } else {
+                value = _currentPage - index.toDouble();
+              }
+              value = value.clamp(-1.0, 1.0);
+              final double rotationY = value * 1.2; // radians
+              final double opacity = (1 - value.abs()).clamp(0.0, 1.0);
+              
+              return Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.001)
+                  ..rotateY(rotationY),
+                child: Opacity(
+                  opacity: opacity,
+                  child: Stack(
+                    children: [
+                      // Video player
+                      GestureDetector(
+                        onTap: () {
+                          final activeController = controller;
+                          if (!_disposed &&
+                              activeController != null &&
+                              activeController.value.isInitialized) {
+                            setState(() {
+                              if (activeController.value.isPlaying) {
+                                activeController.pause();
+                                _isPlaying[index] = false;
+                              } else {
+                                activeController.play();
+                                _isPlaying[index] = true;
+                              }
+                            });
+                          }
+                        },
+                        onDoubleTap: () {
+                          _toggleLike(index);
+                          // TODO: Add heart animation overlay here
+                        },
+                        child: Center(
+                          child: () {
+                            final activeController = controller;
+                            if (activeController != null &&
+                                activeController.value.isInitialized) {
+                              return FittedBox(
+                                fit: BoxFit.contain,
+                                child: SizedBox(
+                                  width: activeController.value.size.width,
+                                  height: activeController.value.size.height,
+                                  child: VideoPlayer(activeController),
+                                ),
+                              );
+                            }
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+                              ),
+                            );
+                          }(),
+                        ),
+                      ),
+                      // Play/Pause icon overlay
+                      if (controller?.value.isInitialized == true &&
+                          !(controller?.value.isPlaying ?? false))
+                        Center(
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black45,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow,
+                              color: Colors.white,
+                              size: 64,
+                            ),
+                          ),
+                        ),
+                      // Back button (Only if NOT embedded)
+                      if (!widget.isEmbedded)
+                        Positioned(
+                          top: 20,
+                          left: 20,
+                          child: GestureDetector(
+                            onTap: () => context.pop(),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_ios,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      // User info overlaid above description
+                      Positioned(
+                        left: 12,
+                        bottom: 50,
+                        child: Builder(
+                          builder: (context) {
+                            final video = _allVideos[index];
+                            final user = video['user'] is Map<String, dynamic>
+                                ? video['user'] as Map<String, dynamic>
+                                : null;
+                            final userName = _getUserDisplayName(user);
+                            
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    final username = user?['username']?.toString();
+                                    if (username != null && username.isNotEmpty) {
+                                      context.go('/user/$username');
+                                    }
+                                  },
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      _buildUserAvatar(user, post: video),
+                                      Positioned(
+                                        bottom: -4,
+                                        right: -4,
+                                        child: _buildFollowButton(index, user),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () {
+                                    final username = user?['username']?.toString();
+                                    if (username != null && username.isNotEmpty) {
+                                      context.go('/user/$username');
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      userName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      // Video description bar
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: _VideoDescriptionBar(
+                          description: _allVideos[index]['description'] ?? '',
+                        ),
+                      ),
+                      // Interaction buttons overlaid on the right side of video
+                      Positioned(
+                        right: 12,
+                        bottom: 80,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            GestureDetector(
+                              onTap: () => _toggleLike(index),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                transform: Matrix4.identity()..scale(
+                                    _likeTapped[index] ? 0.8 : 1.0
+                                ),
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 150),
+                                  opacity: 1.0,
+                                  child: _iconStatColumn(
+                                    _liked[index] ? Icons.favorite : Icons.favorite_border,
+                                    _formatCount(_likeCounts[index]),
+                                    color: _liked[index] ? const Color(0xFFB875FB) : Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: _showComments,
+                              child: _iconStatColumn(Icons.message_outlined, _formatCount(_commentCounts[index])),
+                            ),
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () => _toggleSave(index),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                transform: Matrix4.identity()..scale(
+                                    _saveTapped[index] ? 0.8 : 1.0
+                                ),
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 150),
+                                  opacity: 1.0,
+                                  child: _iconStatColumn(
+                                    _saved[index] ? Icons.bookmark : Icons.bookmark_border,
+                                    _formatCount(_saveCounts[index]),
+                                    color: _saved[index] ? const Color(0xFFB875FB) : Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: _showGiftModalForCurrentVideo,
+                              child: _iconStatColumn(Icons.card_giftcard, 'Gift'),
+                            ),
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () => _share(index),
+                              child: _iconStatColumn(Icons.share_outlined, 'Share'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
   }
 
   Widget _buildVideoProgressBar() {
@@ -2115,8 +2347,8 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     );
   }
 
-  Widget _buildUserAvatar(Map<String, dynamic>? user, {double radius = 22}) {
-    final avatarUrl = _getProfileImageUrl(user, _allVideos[_currentPage]);
+  Widget _buildUserAvatar(Map<String, dynamic>? user, {Map<String, dynamic>? post, double radius = 22}) {
+    final avatarUrl = _getProfileImageUrl(user, post);
     final letter = _getUserInitial(user);
     return CircleAvatar(
       radius: radius,
@@ -2144,6 +2376,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
     }
     final userId = _extractUserId(user);
     if (userId == null) return const SizedBox.shrink();
+    if (_currentUserId != null && userId == _currentUserId) return const SizedBox.shrink();
     
     // Check if we need to load follow status from API
     if (index < _allVideos.length && !_followLoading[index]) {
@@ -2171,14 +2404,18 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
           }
         }
         
-        // Check user_interactions if available
         if (!foundInPost) {
           final interactions = post['user_interactions'];
           if (interactions is Map<String, dynamic> && interactions.containsKey('following')) {
             final value = _toBool(interactions['following']);
             if (value != null && index < _following.length && _following[index] != value) {
-              setState(() {
-                _following[index] = value;
+              // Schedule state update after build to avoid illegal setState during build
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && index < _following.length) {
+                  setState(() {
+                    _following[index] = value;
+                  });
+                }
               });
               foundInPost = true;
             }
@@ -2203,7 +2440,7 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
         width: 22,
         height: 22,
         decoration: BoxDecoration(
-          color: isFollowing ? const Color(0xFF1DB954) : Colors.amber,
+          color: isFollowing ? const Color(0xFF3B82F6) : Colors.amber,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.black, width: 2),
         ),
@@ -2216,9 +2453,9 @@ class _TubePlayerScreenState extends State<TubePlayerScreen> with AutomaticKeepA
                 ),
               )
             : Icon(
-                isFollowing ? Icons.check : Icons.add,
+                isFollowing ? Icons.chat_bubble_outline : Icons.add,
                 size: 14,
-                color: Colors.black,
+                color: Colors.white,
               ),
       ),
     );

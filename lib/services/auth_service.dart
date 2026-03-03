@@ -270,10 +270,19 @@ class AuthService {
   // Logout
   Future<Map<String, dynamic>> logout() async {
     try {
-      final response = await _apiService.post('/auth/logout');
+      // Node backend implies stateless JWT, so this API call might strict 404.
+      // We attempt it for good measure but catch any error to ensure local logout.
+      try {
+        await _apiService.post('/auth/logout');
+      } catch (e) {
+        print('Logout API call failed (expected if stateless): $e');
+      }
+      
       await _apiService.deleteToken();
-      return response.data;
+      return {'success': true};
     } catch (e) {
+      // Ensure token is deleted even on critical failure
+      await _apiService.deleteToken();
       rethrow;
     }
   }

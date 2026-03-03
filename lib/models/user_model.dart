@@ -30,27 +30,31 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final idRaw = json['id'];
+    final id = idRaw is int
+        ? idRaw
+        : (int.tryParse(idRaw?.toString() ?? '0') ?? 0);
     return UserModel(
-      id: json['id'] ?? 0,
-      uuid: json['uuid'] ?? '',
+      id: id,
+      uuid: json['uuid'] ?? json['_id']?.toString() ?? '',
       name: json['name'] ?? '',
       username: json['username'] ?? '',
       email: json['email'] ?? '',
       phone: json['phone'],
       dateOfBirth: json['date_of_birth'],
-      profilePicture: json['profile_picture'],
+      profilePicture: json['profile_picture'] ?? json['profile_avatar']?.toString(),
       userType: json['user_type'] ?? 'user',
       emailVerifiedAt: json['email_verified_at'] != null 
-          ? DateTime.parse(json['email_verified_at']) 
+          ? DateTime.tryParse(json['email_verified_at'].toString()) 
           : null,
       phoneVerifiedAt: json['phone_verified_at'] != null 
-          ? DateTime.parse(json['phone_verified_at']) 
+          ? DateTime.tryParse(json['phone_verified_at'].toString()) 
           : null,
       createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
       updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at'])
+          ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }

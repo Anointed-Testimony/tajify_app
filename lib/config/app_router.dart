@@ -205,14 +205,13 @@ GoRouter createRouter(AuthProvider authProvider) => GoRouter(
       builder: (context, state) {
         final args = state.extra as Map<String, dynamic>?;
         if (args == null || args['videos'] == null || args['initialIndex'] == null) {
-          // Fallback to home if invalid args
           return const HomeScreen();
         }
         final loadMoreVideos = args['loadMoreVideos'];
         return TubePlayerScreen(
           videos: args['videos'] as List<Map<String, dynamic>>,
           initialIndex: args['initialIndex'] as int,
-          loadMoreVideos: loadMoreVideos != null 
+          loadMoreVideos: loadMoreVideos != null
               ? loadMoreVideos as Future<List<Map<String, dynamic>>> Function(int)
               : null,
         );

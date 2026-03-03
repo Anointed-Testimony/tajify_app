@@ -28,6 +28,9 @@ subprojects {
         if (this is com.android.build.gradle.BasePlugin) {
             project.extensions.configure(BaseExtension::class.java) {
                 compileSdkVersion(36)
+                if (namespace.isNullOrBlank()) {
+                    namespace = "com.tajify." + project.name.replace("-", ".").replace("_", ".")
+                }
                 defaultConfig {
                     if (minSdkVersion == null || minSdkVersion!!.apiLevel < 23) {
                         minSdk = 23
@@ -36,13 +39,27 @@ subprojects {
                 }
             }
         }
-        if (name.contains("ffmpeg_kit_flutter_min_gpl") && this is com.android.build.gradle.LibraryPlugin) {
-            project.extensions.configure(LibraryExtension::class.java) {
-                if (namespace.isNullOrBlank()) {
-                    namespace = "com.arthenica.ffmpegkit"
+    }
+
+    val patchManifest = Runnable {
+        val manifestFile = project.file("src/main/AndroidManifest.xml")
+        if (manifestFile.exists()) {
+            try {
+                val contents = manifestFile.readText()
+                if (contents.contains("package=")) {
+                    val updatedContents = contents.replace(Regex("package=\"[^\"]*\""), "")
+                    manifestFile.writeText(updatedContents)
                 }
+            } catch (e: Exception) {
+                println("Failed to patch manifest for ${project.name}: ${e.message}")
             }
         }
+    }
+
+    if (project.state.executed) {
+        patchManifest.run()
+    } else {
+        project.afterEvaluate { patchManifest.run() }
     }
 }
 

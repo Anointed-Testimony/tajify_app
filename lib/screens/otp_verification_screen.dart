@@ -76,7 +76,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       _focusNodes[index - 1].requestFocus();
     }
 
-    // Check if all OTP digits are entered
     if (_getOtpCode().length == 6) {
       _verifyOtp();
     }
@@ -91,9 +90,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     final otpCode = _getOtpCode();
     if (otpCode.length != 6) {
-      setState(() {
-        _errorMessage = 'Please enter the complete 6-digit code';
-      });
+      setState(() => _errorMessage = 'Please enter the complete 6-digit code');
       return;
     }
 
@@ -103,16 +100,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
 
     try {
-      // Debug: Print OTP verification data
-      print('=== OTP VERIFICATION DEBUG ===');
-      print('Email: ${widget.email}');
-      print('Phone: ${widget.phone}');
-      print('OTP Code: $otpCode');
-      print('Purpose: ${widget.purpose}');
-      print('User ID: ${widget.userId}');
-      print('OTP Length: ${otpCode.length}');
-      print('============================');
-
       final response = await _authService.verifyOtp(
         email: widget.email,
         phone: widget.phone,
@@ -121,92 +108,39 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         userId: widget.userId,
       );
 
-      print('OTP Verification Response: $response');
-
-              if (response['success']) {
-          print('OTP verification successful!');
-          
-          // Save user data if available
-          if (response['data'] != null && response['data']['user'] != null) {
-            await _storageService.saveUserData(response['data']['user']);
-            print('User data saved after OTP verification');
-          }
+      if (response['success']) {
+        if (response['data'] != null && response['data']['user'] != null) {
+          await _storageService.saveUserData(response['data']['user']);
+        }
+        
+        if (mounted) {
+          ToastService.showSuccessToast(context, 'Verified successfully!');
           
           if (widget.purpose == 'registration') {
-            // Navigate to home screen after successful registration
-            if (mounted) {
-              context.go('/home');
-            }
+            context.go('/home');
           } else if (widget.purpose == 'password_reset') {
-            // Navigate to reset password screen
-            // Extract user_id from response if available
             final userId = response['data']?['user_id'] ?? response['data']?['user']?['id'];
             final type = widget.email.isNotEmpty ? 'email' : 'phone';
-            if (mounted) {
-              context.go('/reset-password', extra: {
-                'email': widget.email,
-                'phone': widget.phone,
-                'otp': otpCode,
-                'userId': userId,
-                'type': type,
-              });
-            }
+            context.go('/reset-password', extra: {
+              'email': widget.email,
+              'phone': widget.phone,
+              'otp': otpCode,
+              'userId': userId,
+              'type': type,
+            });
           } else {
-            // For login verification, just show success
-            if (mounted) {
-              ToastService.showSuccessToast(context, 'OTP verified successfully!');
-              context.pop();
-            }
+            context.pop();
           }
-        } else {
-        print('OTP verification failed: ${response['message']}');
-        // Extract error message from response, checking for errors object first
-        String errorMessage = 'OTP verification failed';
-        if (response['errors'] != null && response['errors'] is Map) {
-          final errors = response['errors'] as Map;
-          if (errors.isNotEmpty) {
-            final firstError = errors.values.first;
-            if (firstError is List && firstError.isNotEmpty) {
-              errorMessage = firstError.first.toString();
-            } else if (firstError is String) {
-              errorMessage = firstError;
-            }
-          }
-        } else {
-          errorMessage = response['message'] ?? 'OTP verification failed';
-        }
-        if (mounted) {
-          setState(() {
-            _errorMessage = errorMessage;
-          });
-        }
-      }
-    } catch (e) {
-      print('OTP verification error: $e');
-      // Extract the actual error message from the exception
-      String errorMessage = 'OTP verification failed';
-      if (e is Exception) {
-        final message = e.toString();
-        // Remove "Exception: " prefix if present
-        if (message.startsWith('Exception: ')) {
-          errorMessage = message.substring(11);
-        } else {
-          errorMessage = message;
         }
       } else {
-        errorMessage = e.toString();
-      }
-      if (mounted) {
         setState(() {
-          _errorMessage = errorMessage;
+           _errorMessage = response['message'] ?? 'Verification failed';
         });
       }
+    } catch (e) {
+      setState(() => _errorMessage = e.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -225,207 +159,202 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       );
 
       if (response['success']) {
-        setState(() {
-          _resendCountdown = 60;
-        });
+        setState(() => _resendCountdown = 60);
         _startResendCountdown();
-        
-        if (mounted) {
-          ToastService.showSuccessToast(context, 'OTP resent successfully!');
-        }
+        if (mounted) ToastService.showSuccessToast(context, 'Code resent!');
       } else {
-        setState(() {
-          _errorMessage = response['message'] ?? 'Failed to resend OTP';
-        });
+        setState(() => _errorMessage = response['message'] ?? 'Failed to resend');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
+      setState(() => _errorMessage = e.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _isResending = false;
-        });
-      }
+      if (mounted) setState(() => _isResending = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              
-              // Header
-              Text(
-                'Verify Your Account',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontFamily: 'Ebrima',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We\'ve sent a 6-digit code to ${widget.phone ?? widget.email}',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[400],
-                  fontFamily: 'Ebrima',
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // OTP Input Fields
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(6, (index) {
-                  return SizedBox(
-                    width: 45,
-                    child: TextField(
-                      controller: _otpControllers[index],
-                      focusNode: _focusNodes[index],
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontFamily: 'Ebrima',
-                      ),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: const Color(0xFF2A2A2A),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFB875FB), width: 2),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(1),
-                      ],
-                      onChanged: (value) => _onOtpChanged(value, index),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
-
-              // Error Message
-              if (_errorMessage.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    _errorMessage,
-                    style: TextStyle(
-                      color: Colors.red[300],
-                      fontSize: 14,
-                      fontFamily: 'Ebrima',
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 20),
-
-              // Verify Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _verifyOtp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB875FB),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : Text(
-                          'Verify OTP',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Ebrima',
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Resend OTP
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      'Didn\'t receive the code?',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[400],
-                        fontFamily: 'Ebrima',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: _resendCountdown > 0 || _isResending ? null : _resendOtp,
-                      child: Text(
-                        _isResending
-                            ? 'Resending...'
-                            : _resendCountdown > 0
-                                ? 'Resend in $_resendCountdown seconds'
-                                : 'Resend OTP',
-                        style: TextStyle(
-                          color: _resendCountdown > 0 || _isResending
-                              ? Colors.grey[600]
-                              : const Color(0xFFB875FB),
-                          fontSize: 14,
-                          fontFamily: 'Ebrima',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/login-bg.png',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(color: const Color(0xFF111111)),
           ),
-        ),
+          Container(color: Colors.black.withOpacity(0.7)),
+          
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                    onPressed: () => context.pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  const Text(
+                    'Verify Code',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'We sent a 6-digit code to\n${widget.phone ?? widget.email}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+
+                  // OTP Input Fields
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(6, (index) {
+                      return SizedBox(
+                        width: 48,
+                        height: 56,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _otpControllers[index].text.isNotEmpty 
+                                  ? const Color(0xFFF59E0B) 
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _otpControllers[index],
+                            focusNode: _focusNodes[index],
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              counterText: '',
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(1),
+                            ],
+                            onChanged: (value) => _onOtpChanged(value, index),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  if (_errorMessage.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        _errorMessage,
+                        style: TextStyle(color: Colors.red[300], fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  
+                  const SizedBox(height: 40),
+
+                  // Verify Button
+                  Container(
+                    width: double.infinity,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFEA580C).withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _verifyOtp,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text(
+                              'Verify Code',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  // Resend OTP
+                  Center(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Didn\'t receive the code?',
+                          style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: _resendCountdown > 0 || _isResending ? null : _resendOtp,
+                          child: Text(
+                            _isResending
+                                ? 'Resending...'
+                                : _resendCountdown > 0
+                                    ? 'Resend in $_resendCountdown seconds'
+                                    : 'Resend Code',
+                            style: TextStyle(
+                              color: _resendCountdown > 0 || _isResending
+                                  ? Colors.white.withOpacity(0.3)
+                                  : const Color(0xFFF59E0B),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
-} 
+}

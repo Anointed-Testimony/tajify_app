@@ -1,0 +1,1572 @@
+Analyzing tajify_app...                                         
+
+warning • Unused import: '../screens/tube_player_screen.dart' • lib/config/app_router.dart:21:8 • unused_import
+   info • 'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre • lib/main.dart:91:13 • deprecated_member_use
+   info • The private field _isRefreshing could be 'final' • lib/providers/auth_provider.dart:23:8 • prefer_final_fields
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:74:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:115:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:122:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:140:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:141:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:148:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:151:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:159:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:162:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:168:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:178:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:179:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:186:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:189:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:197:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:200:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:206:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:290:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/providers/auth_provider.dart:291:9 • avoid_print
+warning • Unused import: 'package:flutter/material.dart' • lib/routes/route_handlers.dart:1:8 • unused_import
+   info • Don't invoke 'print' in production code • lib/screens/blog_detail_screen.dart:44:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/blog_detail_screen.dart:75:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/screens/blog_detail_screen.dart:114:30 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/blog_detail_screen.dart:119:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:72:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:75:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:77:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:80:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:84:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:89:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:90:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:91:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:93:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:100:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:102:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:105:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:109:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:111:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:114:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:116:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:117:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:118:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:119:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:123:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:126:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:129:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:132:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:135:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:142:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:144:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:148:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:149:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:156:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:157:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:159:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:161:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:181:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:184:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:190:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:196:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:202:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:204:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:206:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:213:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:219:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:222:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:223:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:229:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:232:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:237:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:239:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:240:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:246:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:253:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:258:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:259:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:306:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/camera_recording_screen.dart:316:7 • avoid_print
+warning • Unused import: 'tube_player_screen.dart' • lib/screens/channel_screen.dart:5:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:144:16 • prefer_const_constructors
+   info • The declaration '_UploadProgressSkeleton' isn't referenced • lib/screens/channel_screen.dart:150:7 • unused_element
+   info • The declaration '_ThumbnailSkeleton' isn't referenced • lib/screens/channel_screen.dart:221:7 • unused_element
+   info • The private field _selectedTab could be 'final' • lib/screens/channel_screen.dart:288:7 • prefer_final_fields
+warning • The value of the field '_selectedTab' isn't used • lib/screens/channel_screen.dart:288:7 • unused_field
+warning • The value of the field '_generatedThumbnail' isn't used • lib/screens/channel_screen.dart:299:9 • unused_field
+warning • The value of the field '_recentlyPlayedAudio' isn't used • lib/screens/channel_screen.dart:339:30 • unused_field
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:512:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:517:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:520:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:554:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:579:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:587:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:595:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:725:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:778:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:789:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:796:34 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:859:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:956:7 • avoid_print
+   info • Use of 'return' in a 'finally' clause • lib/screens/channel_screen.dart:964:21 • control_flow_in_finally
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1015:7 • avoid_print
+   info • Use of 'return' in a 'finally' clause • lib/screens/channel_screen.dart:1023:21 • control_flow_in_finally
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1050:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1073:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1091:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1145:7 • avoid_print
+   info • Use of 'return' in a 'finally' clause • lib/screens/channel_screen.dart:1153:21 • control_flow_in_finally
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1202:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1203:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1205:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1206:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1208:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1210:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1243:7 • avoid_print
+   info • Use of 'return' in a 'finally' clause • lib/screens/channel_screen.dart:1251:21 • control_flow_in_finally
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:1281:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:1611:44 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:1837:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:1846:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:1870:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:1870:41 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:1889:13 • prefer_const_constructors
+   info • The declaration '_buildRecentlyPlayedCard' isn't referenced • lib/screens/channel_screen.dart:1986:10 • unused_element
+   info • The declaration '_buildPlaylistCard' isn't referenced • lib/screens/channel_screen.dart:2056:10 • unused_element
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:2289:32 • prefer_const_constructors
+   info • The declaration '_buildPlaceholderSection' isn't referenced • lib/screens/channel_screen.dart:2315:10 • unused_element
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:2451:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:2454:33 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:2477:9 • avoid_print
+   info • Use interpolation to compose strings and values • lib/screens/channel_screen.dart:2477:15 • prefer_interpolation_to_compose_strings
+   info • The declaration '_formatDuration' isn't referenced • lib/screens/channel_screen.dart:2490:10 • unused_element
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:2591:27 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:2835:35 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:2839:77 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:2911:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:2975:26 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3014:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3033:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3038:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3039:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3040:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3041:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3042:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3043:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3044:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3045:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3046:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3052:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3062:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3068:9 • avoid_print
+   info • Unnecessary braces in a string interpolation • lib/screens/channel_screen.dart:3068:41 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3072:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3074:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3076:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3081:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3084:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3086:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3090:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3103:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3106:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3112:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3121:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3123:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3126:7 • avoid_print
+   info • Unnecessary cast • lib/screens/channel_screen.dart:3128:54 • unnecessary_cast
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3129:7 • avoid_print
+   info • Unnecessary cast • lib/screens/channel_screen.dart:3130:80 • unnecessary_cast
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3131:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3144:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3148:21 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3149:21 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3151:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3153:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3154:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3155:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3161:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3164:21 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3165:21 • use_build_context_synchronously
+   info • 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. This feature was deprecated after v3.12.0-1.0.pre • lib/screens/channel_screen.dart:3175:16 • deprecated_member_use
+   info • 'WillPopScope.new' is deprecated and shouldn't be used. Use PopScope instead. This feature was deprecated after v3.12.0-1.0.pre • lib/screens/channel_screen.dart:3175:16 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:3200:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:3259:34 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3356:7 • avoid_print
+   info • The declaration '_showSavedVideos' isn't referenced • lib/screens/channel_screen.dart:3361:8 • unused_element
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3479:34 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3481:38 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3507:42 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:3567:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:3569:59 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:3661:52 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3723:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3724:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3725:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3726:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3727:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3728:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3729:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3730:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3746:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3749:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3751:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3753:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3758:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3760:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3762:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3764:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3766:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3768:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3772:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3788:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3791:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3794:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3800:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3814:20 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3817:20 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3820:28 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3833:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3836:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3843:24 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3844:22 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/channel_screen.dart:3848:28 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:3884:39 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:3912:39 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:3983:7 • avoid_print
+   info • Unnecessary cast • lib/screens/channel_screen.dart:4005:77 • unnecessary_cast
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4008:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4017:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4022:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4025:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4034:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4047:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4051:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4054:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4059:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4060:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4104:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4147:19 • prefer_const_constructors
+   info • 'VideoPlayerController.network' is deprecated and shouldn't be used. Use VideoPlayerController.networkUrl instead • lib/screens/channel_screen.dart:4284:21 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/screens/channel_screen.dart:4311:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4424:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4424:61 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4434:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4438:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4444:24 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4497:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/channel_screen.dart:4541:32 • prefer_const_constructors
+   info • Convert 'key' to a super parameter • lib/screens/channel_screen.dart:4553:9 • use_super_parameters
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:74:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:117:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:135:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:140:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:142:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:143:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:155:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:164:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:169:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:175:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:186:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:194:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:199:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:213:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:228:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:272:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:293:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:306:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:308:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:327:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:335:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:337:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:338:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:339:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:341:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:343:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:345:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:360:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:364:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:369:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:373:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:376:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:420:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:439:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:445:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:446:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:484:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:512:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:576:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:600:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:620:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:626:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:636:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:654:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:657:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:658:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:663:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:692:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:711:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:713:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/community_detail_screen.dart:725:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/community_detail_screen.dart:1216:61 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/community_detail_screen.dart:1310:63 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/community_detail_screen.dart:1311:72 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/community_detail_screen.dart:1313:74 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/community_detail_screen.dart:1552:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/community_detail_screen.dart:1737:43 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/community_detail_screen.dart:1739:52 • prefer_const_constructors
+   info • The private field _followingStatus could be 'final' • lib/screens/connect_screen.dart:62:18 • prefer_final_fields
+   info • The private field _followLoading could be 'final' • lib/screens/connect_screen.dart:63:18 • prefer_final_fields
+   info • The private field _joiningCommunity could be 'final' • lib/screens/connect_screen.dart:65:21 • prefer_final_fields
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:118:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:173:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:220:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:257:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:265:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:302:7 • avoid_print
+   info • The declaration '_joinCommunity' isn't referenced • lib/screens/connect_screen.dart:306:16 • unused_element
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:328:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:393:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:428:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:486:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:538:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:560:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:663:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:664:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:693:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:702:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:703:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:709:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:710:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:915:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:941:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1018:28 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:1258:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/screens/connect_screen.dart:1292:24 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:1324:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1430:42 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1469:42 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1645:30 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:1704:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1848:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1926:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1937:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1945:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connect_screen.dart:1965:34 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/connect_screen.dart:2561:21 • avoid_print
+   info • The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/foundation.dart' • lib/screens/create_content_screen.dart:3:8 • unnecessary_import
+   info • Don't invoke 'print' in production code • lib/screens/create_content_screen.dart:400:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/create_content_screen.dart:595:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/create_content_screen.dart:688:11 • avoid_print
+   info • Unnecessary braces in a string interpolation • lib/screens/create_content_screen.dart:982:13 • unnecessary_brace_in_string_interps
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1010:16 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1014:16 • prefer_const_constructors
+   info • 'onPopInvoked' is deprecated and shouldn't be used. Use onPopInvokedWithResult instead. This feature was deprecated after v3.22.0-12.0.pre • lib/screens/create_content_screen.dart:1024:7 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1399:20 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1444:43 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1451:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1526:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1537:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:1546:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:2445:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:2494:37 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:2566:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:2634:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_content_screen.dart:2708:24 • prefer_const_constructors
+   info • Convert 'key' to a super parameter • lib/screens/earning_center_screen.dart:16:9 • use_super_parameters
+   info • Use of 'return' in a 'finally' clause • lib/screens/earning_center_screen.dart:129:21 • control_flow_in_finally
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:140:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:147:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:150:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:151:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:155:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:162:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:165:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:166:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:167:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:170:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:174:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:181:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:182:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:192:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:193:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:196:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:200:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:206:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:207:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:208:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:209:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:211:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:212:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:216:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:217:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:222:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:228:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:231:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:232:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:233:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:236:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:237:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:238:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:240:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:241:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:242:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:248:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:255:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:595:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:596:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:597:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:598:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:602:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:605:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:609:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:615:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:616:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:622:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:623:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:633:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:714:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:715:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:719:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:720:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:721:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:722:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:739:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:742:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:745:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:751:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:758:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:759:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:767:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:768:23 • avoid_print
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/earning_center_screen.dart:774:36 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:778:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:779:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:785:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:786:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:790:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:791:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:792:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:794:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:795:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:796:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:798:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:799:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:800:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:801:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:810:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:811:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:819:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:820:23 • avoid_print
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/earning_center_screen.dart:826:36 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:830:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:831:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:837:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:838:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:839:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:840:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:841:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:842:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:845:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:846:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:847:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:848:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:856:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:857:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:858:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:862:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:863:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:868:29 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:870:31 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:873:31 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:876:31 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:879:31 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:882:31 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:885:31 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:888:31 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:894:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:895:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:896:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:898:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:899:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:900:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:901:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:902:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:903:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:904:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:905:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:906:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:908:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:915:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:916:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:917:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:920:19 • avoid_print
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/earning_center_screen.dart:926:30 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:929:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:936:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:940:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:944:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:945:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:951:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:952:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:955:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:959:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:960:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:967:29 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:969:29 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:978:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:979:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:982:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:983:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:991:27 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:993:27 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:999:27 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1001:27 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1004:25 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1007:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1008:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1011:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1012:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1014:23 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1019:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1020:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1023:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1026:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1028:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1031:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1034:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1036:21 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1039:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1040:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1043:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1045:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1046:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1047:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1048:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1050:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1051:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1052:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1053:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1054:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1055:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:1056:19 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:1300:61 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:1388:61 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:1416:46 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/earning_center_screen.dart:1499:26 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:1552:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:1706:44 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps • lib/screens/earning_center_screen.dart:1759:7 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/earning_center_screen.dart:1883:26 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2054:48 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2125:42 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2127:61 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2159:67 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2192:46 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2308:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2309:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2310:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2322:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2327:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2328:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2332:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2338:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2344:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2349:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2354:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2358:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2365:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2366:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2367:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2370:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2376:15 • avoid_print
+   info • Unnecessary braces in a string interpolation • lib/screens/earning_center_screen.dart:2376:55 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2379:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2381:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2382:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2387:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2390:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2396:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2397:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2398:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2399:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2400:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2401:15 • avoid_print
+   info • Unnecessary braces in a string interpolation • lib/screens/earning_center_screen.dart:2401:57 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2402:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2413:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2414:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2415:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2418:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2419:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2427:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2428:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2429:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2431:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2432:19 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/screens/earning_center_screen.dart:2466:23 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/earning_center_screen.dart:2488:66 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2514:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2515:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2519:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2520:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2521:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2528:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2529:13 • avoid_print
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/earning_center_screen.dart:2533:26 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2537:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2539:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2540:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2541:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2543:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2544:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2545:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2546:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2547:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2549:13 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2677:48 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2723:46 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2778:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2779:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2780:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2781:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2784:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2791:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2792:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2793:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2798:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2801:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2803:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2804:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2807:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2809:21 • avoid_print
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/earning_center_screen.dart:2812:32 • use_build_context_synchronously
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2814:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2817:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2819:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2820:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2824:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2825:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2826:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2828:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2829:19 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:2830:19 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2907:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2937:22 • prefer_const_constructors
+   info • Unnecessary braces in a string interpolation • lib/screens/earning_center_screen.dart:2981:38 • unnecessary_brace_in_string_interps
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2981:77 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:2986:36 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3005:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3006:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3009:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3012:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3013:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3014:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3017:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3018:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3019:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3020:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3021:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3024:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3027:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3030:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3031:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3032:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3035:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3053:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3054:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3058:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3059:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3060:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3064:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3065:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3066:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3067:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3070:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3071:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3072:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3073:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3074:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3075:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3076:9 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3172:24 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3206:66 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3359:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3360:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3361:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3362:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3363:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3364:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3369:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3374:5 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3381:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3469:35 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3555:52 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3573:52 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3781:37 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:3840:62 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3935:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:3948:7 • avoid_print
+   info • Use 'const' for final variables initialized to a constant value • lib/screens/earning_center_screen.dart:3967:5 • prefer_const_declarations
+   info • The local variable '_buildInfoRow' starts with an underscore • lib/screens/earning_center_screen.dart:3969:12 • no_leading_underscores_for_local_identifiers
+   info • Use 'const' with the constructor to improve performance • lib/screens/earning_center_screen.dart:4038:27 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/earning_center_screen.dart:4039:39 • prefer_const_literals_to_create_immutables
+   info • Unnecessary braces in a string interpolation • lib/screens/earning_center_screen.dart:4202:108 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation • lib/screens/earning_center_screen.dart:4244:55 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • lib/screens/earning_center_screen.dart:4321:7 • avoid_print
+   info • Convert 'key' to a super parameter • lib/screens/forgot_password_screen.dart:7:9 • use_super_parameters
+   info • Don't invoke 'print' in production code • lib/screens/go_live_screen.dart:51:5 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/go_live_screen.dart:173:7 • prefer_const_constructors
+   info • The private field _currentTab could be 'final' • lib/screens/home_screen.dart:27:7 • prefer_final_fields
+warning • The value of the field '_currentTab' isn't used • lib/screens/home_screen.dart:27:7 • unused_field
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:380:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:382:22 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/home_screen.dart:384:27 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:385:19 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/home_screen.dart:386:31 • prefer_const_literals_to_create_immutables
+   info • Unnecessary use of 'toList' in a spread • lib/screens/home_screen.dart:467:28 • unnecessary_to_list_in_spreads
+   info • Use a 'SizedBox' to add whitespace to a layout • lib/screens/home_screen.dart:977:16 • sized_box_for_whitespace
+   info • Use a 'SizedBox' to add whitespace to a layout • lib/screens/home_screen.dart:1119:12 • sized_box_for_whitespace
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:1211:20 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:1326:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:1336:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:1473:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/home_screen.dart:1482:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/live_viewer_screen.dart:92:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/login_screen.dart:389:37 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/login_screen.dart:390:49 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:407:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:529:29 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/market_screen.dart:637:34 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:804:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:847:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:944:79 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1125:44 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1191:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1231:122 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1261:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1324:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1378:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1420:37 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/market_screen.dart:1475:68 • prefer_const_constructors
+   info • The private field _userCache could be 'final' • lib/screens/messages_screen.dart:34:34 • prefer_final_fields
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:72:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:82:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:84:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:96:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:127:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:135:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:138:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:140:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:142:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:144:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:147:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:150:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:151:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:152:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:157:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:158:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:161:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:179:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:189:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:196:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:206:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:213:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:223:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:224:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:242:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:319:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:322:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:336:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:343:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:355:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:370:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:374:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:377:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:378:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:382:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:383:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:384:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:390:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:393:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:394:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:411:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:413:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:441:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:457:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:462:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:463:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:466:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:476:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:479:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:490:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:499:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:515:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:516:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:523:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:524:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:525:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:526:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:527:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:530:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:534:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:538:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:552:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:557:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:563:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:590:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:607:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:613:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:625:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:628:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:632:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:645:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:646:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:680:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:709:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:761:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:762:23 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/messages_screen.dart:765:23 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:835:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:837:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:861:50 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:880:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:883:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:886:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:888:38 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/messages_screen.dart:912:58 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:924:50 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:977:48 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1045:52 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:1059:49 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1090:56 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1180:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1181:23 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/messages_screen.dart:1184:23 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1219:28 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:1233:25 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1356:39 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1502:25 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/messages_screen.dart:1505:25 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1575:42 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1617:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/messages_screen.dart:1767:50 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/messages_screen.dart:1773:41 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/notification_screen.dart:67:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/notification_screen.dart:109:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/notification_screen.dart:125:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/notification_screen.dart:143:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/notification_screen.dart:170:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/notification_screen.dart:197:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/notification_screen.dart:316:16 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/onboarding_screen.dart:82:7 • avoid_print
+   info • Convert 'key' to a super parameter • lib/screens/otp_verification_screen.dart:14:9 • use_super_parameters
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:35:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:36:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:37:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:54:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:55:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:60:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:61:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:68:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:69:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:70:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:71:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:76:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:80:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:83:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:84:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:85:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:88:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:89:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:90:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:93:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:94:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:102:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:127:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:128:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:129:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:130:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:180:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:184:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:199:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:207:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:222:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:230:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:239:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/paystack_screen.dart:253:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:88:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:115:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:140:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:208:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:244:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:283:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:337:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:422:7 • avoid_print
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/personal_profile_screen.dart:499:25 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/personal_profile_screen.dart:504:25 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/personal_profile_screen.dart:622:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/personal_profile_screen.dart:623:23 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/personal_profile_screen.dart:626:23 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/personal_profile_screen.dart:781:39 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/personal_profile_screen.dart:782:39 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/personal_profile_screen.dart:785:39 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/personal_profile_screen.dart:805:50 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/personal_profile_screen.dart:821:47 • avoid_print
+   info • The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/screens/public_profile_screen.dart:3:8 • unnecessary_import
+   info • Don't invoke 'print' in production code • lib/screens/public_profile_screen.dart:71:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/public_profile_screen.dart:99:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/public_profile_screen.dart:119:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/public_profile_screen.dart:155:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/public_profile_screen.dart:215:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/public_profile_screen.dart:242:7 • avoid_print
+   info • The declaration '_isVideoPost' isn't referenced • lib/screens/public_profile_screen.dart:278:8 • unused_element
+warning • The value of the local variable 'clickedPost' isn't used • lib/screens/public_profile_screen.dart:314:11 • unused_local_variable
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:335:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:337:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:337:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:337:62 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:344:72 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:345:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:345:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:345:59 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:381:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:390:35 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:392:35 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:403:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:404:62 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:414:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:415:62 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:430:42 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:436:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:446:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:450:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:453:67 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:454:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:455:71 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:455:103 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:458:55 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:458:72 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:459:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:469:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:471:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:483:51 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/public_profile_screen.dart:483:74 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:483:75 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:483:94 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:495:49 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:498:58 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:509:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:520:50 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:525:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:536:52 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:537:49 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:541:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:543:106 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:553:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:558:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:566:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:571:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:572:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:573:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:574:24 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:574:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:574:71 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:579:14 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:580:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:581:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:582:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:582:39 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:582:68 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:595:24 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:597:38 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:597:53 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:597:71 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:600:37 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:612:18 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:613:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:614:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:615:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:615:40 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/public_profile_screen.dart:616:33 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:617:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:618:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:619:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:619:55 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:627:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:628:22 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:629:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:630:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:630:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:630:73 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:650:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:650:60 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:654:35 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:657:44 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/public_profile_screen.dart:657:98 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:657:99 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:668:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:682:39 • prefer_const_constructors
+   info • The declaration '_buildTab' isn't referenced • lib/screens/public_profile_screen.dart:688:10 • unused_element
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:693:18 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:694:52 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:694:67 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/public_profile_screen.dart:694:85 • prefer_const_constructors
+   info • Convert 'key' to a super parameter • lib/screens/reset_password_screen.dart:14:9 • use_super_parameters
+   info • Don't invoke 'print' in production code • lib/screens/reset_password_screen.dart:135:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/reset_password_screen.dart:195:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reset_password_screen.dart:197:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reset_password_screen.dart:355:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reset_password_screen.dart:357:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reset_password_screen.dart:371:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reset_password_screen.dart:373:30 • prefer_const_constructors
+warning • Unused import: 'tube_player_screen.dart' • lib/screens/saved_posts_screen.dart:6:8 • unused_import
+warning • Unused import: 'shorts_player_screen.dart' • lib/screens/saved_posts_screen.dart:7:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:112:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:118:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:124:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:136:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:142:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:162:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:181:30 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/saved_posts_screen.dart:222:46 • prefer_const_constructors
+   info • 'VideoPlayerController.network' is deprecated and shouldn't be used. Use VideoPlayerController.networkUrl instead • lib/screens/saved_posts_screen.dart:329:21 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/screens/saved_posts_screen.dart:342:7 • avoid_print
+warning • Unused import: 'tube_player_screen.dart' • lib/screens/search_screen.dart:6:8 • unused_import
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:156:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:173:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:174:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:177:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:178:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:179:7 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/search_screen.dart:182:25 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:184:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:186:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:187:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:189:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:191:9 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/search_screen.dart:193:27 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:195:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:196:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:198:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:205:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:206:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:207:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:213:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:215:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:218:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:224:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:226:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:228:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:231:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:234:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:237:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:240:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:243:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:247:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:249:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:250:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:251:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:252:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:253:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:256:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:258:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:259:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:260:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:261:17 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:272:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:273:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:275:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:278:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:282:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:286:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:290:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:293:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:296:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:297:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:298:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:299:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:300:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:301:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:302:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:303:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:314:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:315:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:316:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:321:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:322:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:323:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:363:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:424:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1010:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1014:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1017:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1020:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1022:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1023:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1024:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1025:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1026:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1033:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1036:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1039:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1044:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1048:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1049:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1050:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1051:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1052:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1058:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1061:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1065:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1101:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1102:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1132:35 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1135:33 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1144:33 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1145:33 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1148:35 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/search_screen.dart:1332:7 • avoid_print
+   info • Convert 'key' to a super parameter • lib/screens/shorts_player_screen.dart:18:9 • use_super_parameters
+   info • Don't invoke 'print' in production code • lib/screens/shorts_player_screen.dart:76:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/shorts_player_screen.dart:137:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/shorts_player_screen.dart:184:9 • avoid_print
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:235:28 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:244:36 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:244:66 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:276:39 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:334:23 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:335:26 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:335:56 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:341:23 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:342:26 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:342:56 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:367:26 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/shorts_player_screen.dart:372:22 • curly_braces_in_flow_control_structures
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:436:16 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:436:62 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:436:76 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:464:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:464:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:465:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:472:73 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:474:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:475:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:475:47 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:488:28 • prefer_const_constructors
+   info • Convert 'key' to a super parameter • lib/screens/shorts_player_screen.dart:503:9 • use_super_parameters
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:556:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:556:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:605:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:616:74 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:628:39 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:629:42 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:629:63 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:630:37 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:636:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:644:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:651:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:658:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:665:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:699:47 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:700:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:703:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:707:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:710:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:711:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:712:87 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:744:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:758:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:761:30 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/shorts_player_screen.dart:765:34 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:766:27 • prefer_const_constructors
+   info • Constructors for public widgets should have a named 'key' parameter • lib/screens/shorts_player_screen.dart:781:11 • use_key_in_widget_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:798:70 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/shorts_player_screen.dart:815:13 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:857:32 • prefer_const_constructors
+   info • Don't use 'BuildContext's across async gaps • lib/screens/shorts_player_screen.dart:865:35 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:865:57 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:865:75 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:879:29 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:880:71 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:894:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:895:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:896:39 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:896:66 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:905:105 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:906:58 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:912:35 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:912:49 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:914:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:915:51 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:932:147 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:934:83 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:935:57 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:936:111 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:937:57 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:947:42 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:953:84 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:953:102 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:955:44 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:957:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:957:70 • prefer_const_constructors
+   info • Don't invoke 'print' in production code • lib/screens/shorts_player_screen.dart:1009:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/shorts_player_screen.dart:1062:14 • avoid_print
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1067:61 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1067:79 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1076:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1076:46 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1076:79 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1076:106 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1081:79 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1085:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1085:41 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1108:85 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1110:70 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1111:79 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1122:44 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1127:52 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/shorts_player_screen.dart:1131:50 • prefer_const_constructors
+   info • The private field _dialCode could be 'final' • lib/screens/signup_screen.dart:45:10 • prefer_final_fields
+   info • 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/screens/signup_screen.dart:475:26 • deprecated_member_use
+   info • The private field _fullText could be 'final' • lib/screens/splash_screen.dart:23:10 • prefer_final_fields
+   info • Don't invoke 'print' in production code • lib/screens/splash_screen.dart:110:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/splash_screen.dart:126:7 • avoid_print
+   info • Convert 'key' to a super parameter • lib/screens/tube_player_screen.dart:17:9 • use_super_parameters
+   info • The private field _editControllers could be 'final' • lib/screens/tube_player_screen.dart:65:35 • prefer_final_fields
+   info • The private field _replyEditControllers could be 'final' • lib/screens/tube_player_screen.dart:66:35 • prefer_final_fields
+   info • The private field _commentReplies could be 'final' • lib/screens/tube_player_screen.dart:69:40 • prefer_final_fields
+   info • The private field _repliesLoading could be 'final' • lib/screens/tube_player_screen.dart:70:18 • prefer_final_fields
+   info • The private field _showReplies could be 'final' • lib/screens/tube_player_screen.dart:71:18 • prefer_final_fields
+   info • The private field _showReplyInput could be 'final' • lib/screens/tube_player_screen.dart:72:18 • prefer_final_fields
+   info • The private field _replyControllers could be 'final' • lib/screens/tube_player_screen.dart:73:35 • prefer_final_fields
+   info • The private field _commentLiked could be 'final' • lib/screens/tube_player_screen.dart:76:18 • prefer_final_fields
+   info • The private field _commentLikeCounts could be 'final' • lib/screens/tube_player_screen.dart:77:17 • prefer_final_fields
+   info • The private field _commentLikeLoading could be 'final' • lib/screens/tube_player_screen.dart:78:18 • prefer_final_fields
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:223:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:228:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:231:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:261:11 • avoid_print
+   info • 'VideoPlayerController.network' is deprecated and shouldn't be used. Use VideoPlayerController.networkUrl instead • lib/screens/tube_player_screen.dart:262:30 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:284:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:303:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:316:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:322:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:324:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:331:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:332:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:333:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:343:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:345:15 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:348:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:351:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:361:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:366:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:483:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:565:13 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:570:7 • avoid_print
+   info • The declaration '_seekVideo' isn't referenced • lib/screens/tube_player_screen.dart:579:8 • unused_element
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:604:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:633:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:635:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:644:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:646:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:656:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:671:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:700:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:702:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:710:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:715:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:725:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:751:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:754:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:761:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:772:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:774:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:815:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:817:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:827:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:853:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:869:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:887:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:893:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:896:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:906:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:919:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:945:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:1024:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:1027:7 • avoid_print
+   info • Unnecessary braces in a string interpolation • lib/screens/tube_player_screen.dart:1278:60 • unnecessary_brace_in_string_interps
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:1707:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:1710:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:1712:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:1721:7 • avoid_print
+   info • 'onPopInvoked' is deprecated and shouldn't be used. Use onPopInvokedWithResult instead. This feature was deprecated after v3.22.0-12.0.pre • lib/screens/tube_player_screen.dart:1777:7 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:2387:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:2432:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:2512:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:2539:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/screens/tube_player_screen.dart:2566:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:56:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:57:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:58:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:59:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:63:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:64:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:65:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:69:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:70:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:71:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:72:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:73:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:74:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:75:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:76:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:77:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:78:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:103:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:104:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:105:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:106:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:118:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:119:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:120:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:124:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:125:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:126:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:127:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:128:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:129:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:130:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:131:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:132:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:133:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:227:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:235:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:237:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:814:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:815:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:822:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:829:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:830:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:831:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:835:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:836:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:837:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:839:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:840:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:841:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:842:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:843:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:844:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:851:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:852:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:859:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:866:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:867:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:868:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:872:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:873:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:874:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:876:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:877:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:878:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:879:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:880:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:881:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:888:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:889:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:890:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:891:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:898:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:899:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:900:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:904:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:905:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:906:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:908:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:909:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:910:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:911:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:912:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:913:9 • avoid_print
+   info • Use 'const' for final variables initialized to a constant value • lib/services/api_service.dart:933:5 • prefer_const_declarations
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1213:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1214:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1217:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1223:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1224:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1237:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1238:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1239:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/api_service.dart:1243:7 • avoid_print
+warning • Unused import: 'package:image_picker/image_picker.dart' • lib/services/auth_service.dart:3:8 • unused_import
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:22:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:23:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:24:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:25:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:26:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:27:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:28:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:29:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:30:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:31:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:32:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:46:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:53:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:56:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:58:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:62:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:136:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:137:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:138:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:139:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:140:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:141:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:158:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:159:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:160:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:162:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:165:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:169:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:278:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:298:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:299:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:300:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:301:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:302:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:303:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:311:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:313:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:315:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:316:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:319:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:322:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:324:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:326:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:327:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:328:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:331:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:334:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:335:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:336:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:337:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/auth_service.dart:338:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:27:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:31:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:32:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:38:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:40:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:44:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:45:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:46:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:50:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:56:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:58:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:62:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:63:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:64:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:67:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:68:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:82:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:87:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:88:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:89:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:93:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:94:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:95:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:96:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:100:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:101:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:102:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:103:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:104:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:105:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:111:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:113:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:117:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:118:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:122:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:131:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:132:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:133:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:136:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:141:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:144:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:154:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:155:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:161:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:163:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:164:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:168:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:169:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:172:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:174:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:176:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:197:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:198:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:201:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:205:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:213:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:225:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:226:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:227:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:228:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:229:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:230:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:231:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:234:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:237:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:242:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:247:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:262:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:263:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:267:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:270:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:271:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:280:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:281:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:284:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:288:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:297:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:300:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:311:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:320:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:323:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:332:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:334:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:341:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:344:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:348:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:356:11 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:360:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:366:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:369:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:373:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:381:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:396:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:397:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:398:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:399:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:402:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:405:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:410:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:415:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:431:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:432:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:436:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:439:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:440:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:458:5 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:466:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:471:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:472:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:475:9 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:482:7 • avoid_print
+   info • Don't invoke 'print' in production code • lib/services/firebase_service.dart:520:3 • avoid_print
+   info • Don't use 'BuildContext's across async gaps • lib/services/walletconnect_service.dart:159:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/create_content_modal.dart:59:42 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/create_content_modal.dart:74:42 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/create_content_modal.dart:89:42 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/create_content_modal.dart:104:42 • use_build_context_synchronously
+   info • Use 'const' with the constructor to improve performance • lib/widgets/create_content_modal.dart:147:27 • prefer_const_constructors
+   info • Convert 'key' to a super parameter • lib/widgets/custom_toast.dart:8:9 • use_super_parameters
+   info • Use 'const' with the constructor to improve performance • lib/widgets/tajstars_gift_modal.dart:316:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/tajstars_gift_modal.dart:471:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/tajstars_gift_modal.dart:472:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/tajstars_gift_modal.dart:647:14 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/tajstars_gift_modal.dart:648:19 • prefer_const_literals_to_create_immutables
+

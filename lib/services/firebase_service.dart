@@ -1,10 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class FirebaseService {
   static FirebaseFirestore? _firestore;
   static FirebaseAuth? _auth;
+  static FirebaseMessaging? _messaging;
   static bool _initialized = false;
   static bool _authInitialized = false;
 
@@ -142,6 +145,9 @@ class FirebaseService {
         return false;
       }
     }
+
+    // Initialize Push Notifications
+    await _initializeMessaging();
 
     try {
       if (_auth?.currentUser != null) {
@@ -435,5 +441,82 @@ class FirebaseService {
       rethrow;
     }
   }
+
+  // Push Notification methods
+  static Future<void> _initializeMessaging() async {
+    if (_messaging != null) return;
+    
+    _messaging = FirebaseMessaging.instance;
+
+    // Request permissions (especially for iOS)
+    NotificationSettings settings = await _messaging!.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    print('User granted permission: ${settings.authorizationStatus}');
+
+    // Handle background messages
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // Initial message if app was opened from a notification
+    RemoteMessage? initialMessage = await _messaging!.getInitialMessage();
+    if (initialMessage != null) {
+      print('App opened from notification: ${initialMessage.data}');
+    }
+
+    // Handle foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('Got a message whilst in the foreground!');
+      print('Message data: ${message.data}');
+
+      if (message.notification != null) {
+        print('Message also contained a notification: ${message.notification}');
+        _showLocalNotification(message);
+      }
+    });
+
+    // Handle message when app is in background but not terminated
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('A new onMessageOpenedApp event was published!');
+    });
+  }
+
+  static Future<String?> getFCMToken() async {
+    if (_messaging == null) await _initializeMessaging();
+    return await _messaging!.getToken();
+  }
+
+  static Future<void> _showLocalNotification(RemoteMessage message) async {
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'High Importance Notifications',
+      description: 'This channel is used for important notifications.',
+      importance: Importance.max,
+    );
+
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+    await flutterLocalNotificationsPlugin.show(
+      message.notification.hashCode,
+      message.notification?.title,
+      message.notification?.body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
+          icon: '@mipmap/ic_launcher',
+        ),
+      ),
+    );
+  }
+}
+
+// Global background handler
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await FirebaseService.initialize();
+  print("Handling a background message: ${message.messageId}");
 }
 

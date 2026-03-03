@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
 import 'config/app_router.dart';
 import 'providers/auth_provider.dart';
 import 'services/token_manager.dart';
@@ -82,10 +83,19 @@ class _MyAppState extends State<MyApp> {
           Locale('en', 'US'),
         ],
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF8C00)),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFFEA580C), // Orange brand color
+            brightness: Brightness.dark,
+            primary: const Color(0xFFEA580C),
+            secondary: const Color(0xFFF59E0B),
+            background: Colors.black, // Ensure background is black
+            surface: const Color(0xFF1E1E1E), // Dark surface
+          ),
           useMaterial3: true,
-          fontFamily: 'Ebrima',
-          scaffoldBackgroundColor: const Color(0xFF1A1A1A),
+          textTheme: GoogleFonts.poppinsTextTheme(
+            ThemeData.dark().textTheme,
+          ), // Use Poppins for a professional look
+          scaffoldBackgroundColor: Colors.black, // Darker background for cinematic feel
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.transparent,
             elevation: 0,

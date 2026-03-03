@@ -37,8 +37,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     {'id': 'Tube Short', 'name': 'Tube Short', 'label': 'Short', 'color': 'blue'},
     {'id': 'Tube Max', 'name': 'Tube Max', 'label': 'Max', 'color': 'green'},
     {'id': 'Tube Prime', 'name': 'Tube Prime', 'label': 'Prime', 'color': 'amber'},
+    {'id': 'Photo', 'name': 'Photo', 'label': 'Photo', 'color': 'purple'},
     {'id': 'Private', 'name': 'Private', 'label': 'Private', 'color': 'red'},
-    {'id': 'Audio', 'name': 'Audio', 'label': 'Audio', 'color': 'purple'},
+    {'id': 'Audio', 'name': 'Audio', 'label': 'Audio', 'color': 'orange'},
     {'id': 'Blog', 'name': 'Blog', 'label': 'Blog', 'color': 'orange'},
   ];
   
@@ -62,6 +63,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   double _trimStart = 0;
   double _trimEnd = 0;
   bool _isTrimmingVideo = false;
+  
+  // Photo state (TikTok-style image post)
+  List<File> _pickedImages = [];
   
   // Audio state
   File? _audioFile;
@@ -88,6 +92,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   
   // Upload state
   bool _isProcessing = false;
+  double? _uploadProgress; // 0.0 to 1.0, null when not uploading
+  String _uploadStatus = '';
   
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
@@ -128,7 +134,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
               children: [
                 Icon(
                   Icons.tune,
-                  color: _showVideoEditor ? const Color(0xFFB875FB) : Colors.white,
+                  color: _showVideoEditor ? const Color(0xFFEA580C) : Colors.white,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -176,7 +182,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             max: _videoDuration,
             divisions: _videoDuration > 0 ? _videoDuration.clamp(1, double.infinity).round() : null,
             values: RangeValues(_trimStart, _trimEnd),
-            activeColor: const Color(0xFFB875FB),
+            activeColor: const Color(0xFFEA580C),
             inactiveColor: Colors.white24,
             onChanged: (values) {
               setState(() {
@@ -208,7 +214,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             child: ElevatedButton(
               onPressed: (_trimEnd - _trimStart) > 1 && !_isTrimmingVideo ? _applyTrim : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFB875FB),
+                backgroundColor: const Color(0xFFEA580C),
                 disabledBackgroundColor: Colors.grey[700],
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -506,6 +512,11 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       return;
     }
 
+    if (_selectedCategory == 'Photo' && _pickedImages.isEmpty) {
+      _showError('Pick at least one photo');
+      return;
+    }
+
     _uploadLog('Starting publish flow', {
       'category': _selectedCategory,
       'activeTab': _activeTab,
@@ -524,6 +535,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       } else if (_selectedCategory == 'Blog') {
         _uploadLog('Publishing blog');
         await _publishBlog();
+      } else if (_selectedCategory == 'Photo') {
+        _uploadLog('Publishing photos');
+        await _publishPhoto();
       } else {
         _uploadLog('Publishing video');
         await _publishVideo();
@@ -533,6 +547,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       _uploadLog('Publish failed', e.toString());
       setState(() {
         _isProcessing = false;
+        _uploadProgress = null;
+        _uploadStatus = '';
       });
     }
   }
@@ -552,18 +568,34 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     }
 
     try {
+      if (mounted) setState(() {
+        _uploadProgress = 0;
+        _uploadStatus = 'Preparing...';
+      });
       // Step 1: Get upload token
       final tokenResponse = await _apiService.getUploadToken();
       final uploadToken = tokenResponse.data['token'];
        _uploadLog('Audio upload token received', tokenResponse.data);
       _uploadLog('Obtained upload token', tokenResponse.data);
 
+      if (mounted) setState(() {
+        _uploadProgress = 0.05;
+        _uploadStatus = 'Uploading video...';
+      });
       // Step 2: Upload video
       final uploadResponse = await _apiService.uploadMedia(
         _uploadedVideoFile!,
         'video',
         uploadToken: uploadToken,
         duration: _videoDuration,
+        onProgress: (sent, total) {
+          if (total > 0 && mounted) {
+            setState(() {
+              _uploadProgress = 0.05 + 0.75 * (sent / total);
+              _uploadStatus = 'Uploading video...';
+            });
+          }
+        },
       );
       _uploadLog('Video uploaded', {
         'statusCode': uploadResponse.statusCode,
@@ -575,6 +607,10 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
       }
       _uploadLog('Video media id', videoMediaId);
 
+      if (mounted) setState(() {
+        _uploadProgress = 0.82;
+        _uploadStatus = 'Processing thumbnail...';
+      });
       // Step 3: Upload thumbnail if custom
       int? thumbnailMediaId;
       if (_selectedThumbnail == 'custom' && _customThumbnail != null) {
@@ -585,6 +621,14 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
             _customThumbnail!,
             'image',
             uploadToken: thumbToken,
+            onProgress: (sent, total) {
+              if (total > 0 && mounted) {
+                setState(() {
+                  _uploadProgress = 0.82 + 0.12 * (sent / total);
+                  _uploadStatus = 'Uploading thumbnail...';
+                });
+              }
+            },
           );
           thumbnailMediaId = _extractMediaId(thumbResponse.data);
           _uploadLog('Thumbnail uploaded', {
@@ -596,6 +640,10 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         }
       }
 
+      if (mounted) setState(() {
+        _uploadProgress = 0.95;
+        _uploadStatus = 'Creating post...';
+      });
       // Step 4: Create post
       final postResponse = await _apiService.createPostWithAutoCategorization(
         videoDuration: _videoDuration,
@@ -624,15 +672,88 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         'thumbnailId': thumbnailMediaId,
       });
 
+      if (mounted) setState(() {
+        _uploadProgress = 1.0;
+        _uploadStatus = 'Done';
+      });
       _showSuccess('Video uploaded successfully!');
       _uploadLog('Video publish completed');
       _resetVideo();
       
       if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _uploadProgress = null;
+          _uploadStatus = '';
+        });
         context.pop();
       }
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _uploadProgress = null;
+          _uploadStatus = '';
+        });
+      }
       throw Exception('Video upload failed: $e');
+    }
+  }
+
+  Future<void> _publishPhoto() async {
+    if (_pickedImages.isEmpty) throw Exception('No photos selected');
+    try {
+      if (mounted) setState(() {
+        _uploadProgress = 0;
+        _uploadStatus = 'Uploading photo...';
+      });
+      final tokenResponse = await _apiService.getUploadToken();
+      final uploadToken = tokenResponse.data['token'];
+      final file = _pickedImages.first;
+      final uploadResponse = await _apiService.uploadMedia(
+        file,
+        'image',
+        uploadToken: uploadToken,
+        onProgress: (sent, total) {
+          if (total > 0 && mounted) {
+            setState(() {
+              _uploadProgress = (sent / total) * 0.9;
+              _uploadStatus = 'Uploading...';
+            });
+          }
+        },
+      );
+      final mediaId = _extractMediaId(uploadResponse.data);
+      if (mediaId == null) throw Exception('Photo upload failed');
+      final postResponse = await _apiService.createPostWithAutoCategorization(
+        videoDuration: 0,
+        description: _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null,
+        hashtags: _hashtags.isNotEmpty ? _hashtags : null,
+      );
+      final postData = _extractPostData(postResponse.data);
+      final postId = _toInt(postData?['id']);
+      if (postId == null) throw Exception('Failed to create post');
+      await _apiService.completeUpload(postId, [mediaId]);
+      if (mounted) setState(() {
+        _uploadProgress = 1.0;
+        _uploadStatus = 'Done';
+      });
+      _showSuccess('Photo posted!');
+      setState(() {
+        _pickedImages.clear();
+        _descriptionController.clear();
+        _isProcessing = false;
+        _uploadProgress = null;
+        _uploadStatus = '';
+      });
+      if (mounted) context.pop();
+    } catch (e) {
+      if (mounted) setState(() {
+        _isProcessing = false;
+        _uploadProgress = null;
+        _uploadStatus = '';
+      });
+      rethrow;
     }
   }
 
@@ -908,6 +1029,16 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
     });
   }
 
+  void _resetPhoto() {
+    setState(() {
+      _pickedImages.clear();
+      _descriptionController.clear();
+      _isProcessing = false;
+      _uploadProgress = null;
+      _uploadStatus = '';
+    });
+  }
+
   void _resetAudio() {
     setState(() {
       _audioFile = null;
@@ -1010,6 +1141,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         return Color(0xFFB875FB);
       case 'purple':
         return Colors.purple;
+      case 'red':
+        return Colors.red;
       case 'orange':
         return Color(0xFFB875FB);
       default:
@@ -1050,7 +1183,12 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         avatarUrl: _currentUserAvatar,
         displayLetter: _currentUserInitial,
       ),
-      body: Container(
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isProcessing) _buildUploadProgressBar(),
+          Expanded(
+            child: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -1067,11 +1205,11 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
               _buildCategorySelection(),
               const SizedBox(height: 24),
               
-              // Tab Selection (for video categories)
-              if (_selectedCategory != 'Audio' && _selectedCategory != 'Blog')
+              // Tab Selection (for video categories; not for Photo/Audio/Blog)
+              if (_selectedCategory != 'Audio' && _selectedCategory != 'Blog' && _selectedCategory != 'Photo')
                 _buildTabSelection(),
               
-              if (_selectedCategory != 'Audio' && _selectedCategory != 'Blog')
+              if (_selectedCategory != 'Audio' && _selectedCategory != 'Blog' && _selectedCategory != 'Photo')
                 const SizedBox(height: 24),
               
               // Main Content
@@ -1079,6 +1217,8 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                 _buildAudioContent()
               else if (_selectedCategory == 'Blog')
                 _buildBlogContent()
+              else if (_selectedCategory == 'Photo')
+                _buildPhotoContent()
               else
                 _buildVideoContent(),
               
@@ -1090,6 +1230,56 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
           ),
         ),
       ),
+          ),
+        ],
+      ),
+    ),);
+  }
+
+  Widget _buildUploadProgressBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: const Color(0xFF1A1A1A),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  value: _uploadProgress != null ? _uploadProgress : null,
+                  color: const Color(0xFFEA580C),
+                  backgroundColor: Colors.white12,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _uploadStatus.isEmpty ? 'Uploading...' : _uploadStatus,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (_uploadProgress != null)
+                Text(
+                  '${(_uploadProgress! * 100).round()}%',
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          LinearProgressIndicator(
+            value: _uploadProgress,
+            backgroundColor: Colors.white12,
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFEA580C)),
+            minHeight: 3,
+          ),
+        ],
       ),
     );
   }
@@ -1233,6 +1423,122 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPhotoContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Upload Photos',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () async {
+            final result = await FilePicker.platform.pickFiles(
+              type: FileType.image,
+              allowMultiple: true,
+            );
+            if (result != null && result.files.isNotEmpty && mounted) {
+              setState(() {
+                for (final f in result.files) {
+                  if (f.path != null) _pickedImages.add(File(f.path!));
+                }
+              });
+            }
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.photo_library_outlined, color: Colors.white70, size: 28),
+                const SizedBox(width: 10),
+                Text(
+                  _pickedImages.isEmpty ? 'Tap to pick photos' : 'Add more photos',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_pickedImages.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            '${_pickedImages.length} photo(s)',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 100,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _pickedImages.length,
+              itemBuilder: (context, i) {
+                return Stack(
+                  children: [
+                    Container(
+                      width: 88,
+                      height: 88,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: DecorationImage(
+                          fit: BoxFit.cover,
+                          image: FileImage(_pickedImages[i]),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 12,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _pickedImages.removeAt(i)),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _descriptionController,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Caption (optional)',
+              hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.06),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -2697,7 +3003,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                     ? _resetAudio
                     : _selectedCategory == 'Blog'
                         ? _resetBlog
-                        : _resetVideo,
+                        : _selectedCategory == 'Photo'
+                            ? _resetPhoto
+                            : _resetVideo,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   side: BorderSide(color: Colors.grey[700]!),
@@ -2754,7 +3062,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
                                 ? 'Publish Track'
                                 : _selectedCategory == 'Blog'
                                     ? (_blogPublished ? 'Publish Blog' : 'Save Draft')
-                                    : 'Publish Video',
+                                    : _selectedCategory == 'Photo'
+                                        ? 'Publish Photo'
+                                        : 'Publish Video',
                             style: const TextStyle(
                               color: Colors.black,
                               fontWeight: FontWeight.bold,
@@ -2771,6 +3081,9 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
   }
 
   Future<bool> _canPublish() async {
+    if (_selectedCategory == 'Photo') {
+      return _pickedImages.isNotEmpty;
+    }
     if (_selectedCategory == 'Tube Prime' && _videoTitle.trim().isEmpty) {
       return false;
     }
@@ -2797,7 +3110,7 @@ class _CreateContentScreenState extends State<CreateContentScreen> {
         return false;
       }
     }
-    if (_selectedCategory != 'Audio' && _selectedCategory != 'Blog' && _uploadedVideoFile == null) {
+    if (_selectedCategory != 'Audio' && _selectedCategory != 'Blog' && _selectedCategory != 'Photo' && _uploadedVideoFile == null) {
       return false;
     }
     if (_durationError.isNotEmpty) {

@@ -667,7 +667,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                color: Color(0xFFB875FB),
+                                color: Color(0xFFEA580C),
                                 strokeWidth: 2,
                               ),
                             ),
@@ -775,7 +775,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                           _audioPlayer?.seek(position);
                         }
                       },
-                      activeColor: Color(0xFFB875FB),
+                      activeColor: Color(0xFFEA580C),
                       inactiveColor: Colors.grey[700],
                     ),
                   ),

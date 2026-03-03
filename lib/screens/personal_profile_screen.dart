@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../providers/auth_provider.dart';
 
 class PersonalProfileScreen extends StatefulWidget {
   const PersonalProfileScreen({super.key});
@@ -27,7 +29,8 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   bool _hasMorePosts = true;
   int _currentPage = 1;
   static const int _pageSize = 12;
-  int? _currentUserId;
+  /// Current user id for API (int or String for Mongo).
+  dynamic _currentUserId;
   final ScrollController _scrollController = ScrollController();
   
   // Edit form controllers
@@ -40,6 +43,9 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   
   bool _isEditing = false;
   File? _selectedAvatar;
+  
+  // Profile content tab like web: Shorts | Tube Max | Articles
+  int _profileTabIndex = 0;
 
   @override
   void initState() {
@@ -74,19 +80,19 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
   Future<void> _loadCurrentUserId() async {
     try {
       final storedId = await _storageService.getUserId();
+      final userData = await _storageService.getUserData();
+      final idFromData = userData?['_id'] ?? userData?['id'];
       final parsedId = storedId != null ? int.tryParse(storedId) : null;
       setState(() {
-        _currentUserId = parsedId;
+        _currentUserId = parsedId ?? storedId ?? idFromData;
       });
-      
-      if (_currentUserId != null) {
-        await _loadProfile();
-        await _loadStats();
-        await _loadPosts();
-      }
+      // Always load profile from API (token may be valid even if storage id missing)
+      await _loadProfile();
+      await _loadStats();
+      if (_currentUserId != null) await _loadPosts();
     } catch (e) {
       print('[PROFILE] Error loading current user: $e');
-      setState(() {
+      if (mounted) setState(() {
         _loading = false;
       });
     }
@@ -100,7 +106,11 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     try {
       final response = await _apiService.getProfile();
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final profileData = response.data['data'];
+        final data = response.data['data'];
+        // Node returns { data: { user: { _id, name, ... } } }; flatten for UI
+        final profileData = data is Map && data['user'] != null
+            ? Map<String, dynamic>.from(data['user'] as Map)
+            : Map<String, dynamic>.from(data ?? {});
         setState(() {
           _profile = profileData;
           _nameController.text = profileData['name']?.toString() ?? '';
@@ -109,6 +119,9 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
           _phoneController.text = profileData['phone']?.toString() ?? '';
           _bioController.text = profileData['bio']?.toString() ?? '';
           _dateOfBirthController.text = profileData['date_of_birth']?.toString() ?? '';
+          // Use profile id for API calls (Mongo _id is string)
+          final id = profileData['_id'] ?? profileData['id'];
+          if (id != null) _currentUserId = int.tryParse(id.toString()) ?? id;
         });
       }
     } catch (e) {
@@ -493,11 +506,8 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                   
                   if (confirmed == true) {
                     try {
-                      await _apiService.clearAllData();
-                      await _storageService.clearAllData();
-                      if (mounted) {
-                        context.go('/login');
-                      }
+                      await context.read<AuthProvider>().logout();
+                      if (mounted) context.go('/login');
                     } catch (e) {
                       if (mounted) {
                         await _storageService.clearAllData();
@@ -595,13 +605,56 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
     return _posts.where((post) => _isVideoPost(post)).toList();
   }
 
+  /// Shorts: tube_short, reel, or duration <= 60
+  List<Map<String, dynamic>> _getShortsPosts() {
+    return _posts.where((p) {
+      final t = p['post_type'] ?? p['type'];
+      if (t == 'article') return false;
+      if (t == 'reel' || t == 'tube_short' || p['is_reel'] == true) return true;
+      if (t == 'tube_max' || t == 'tube_prime' || t == 'video' || p['is_long'] == true) return false;
+      final duration = (p['media_files'] is List && (p['media_files'] as List).isNotEmpty)
+          ? ((p['media_files'][0] as Map<String, dynamic>?)?['duration'])
+          : null;
+      final d = duration is num ? duration.toDouble() : (duration != null ? double.tryParse(duration.toString()) : null);
+      return d != null && d <= 60;
+    }).cast<Map<String, dynamic>>().toList();
+  }
+
+  /// Tube Max: long videos
+  List<Map<String, dynamic>> _getTubeMaxPosts() {
+    return _posts.where((p) {
+      final t = p['post_type'] ?? p['type'];
+      if (t == 'article') return false;
+      if (t == 'tube_max' || t == 'tube_prime' || t == 'video' || p['is_long'] == true) return true;
+      if (t == 'reel' || t == 'tube_short' || p['is_reel'] == true) return false;
+      final duration = (p['media_files'] is List && (p['media_files'] as List).isNotEmpty)
+          ? ((p['media_files'][0] as Map<String, dynamic>?)?['duration'])
+          : null;
+      final d = duration is num ? duration.toDouble() : (duration != null ? double.tryParse(duration.toString()) : null);
+      return d != null && d > 60;
+    }).cast<Map<String, dynamic>>().toList();
+  }
+
+  /// Articles / blogs
+  List<Map<String, dynamic>> _getBlogsPosts() {
+    return _posts.where((p) => (p['post_type'] ?? p['type']) == 'article').cast<Map<String, dynamic>>().toList();
+  }
+
+  List<Map<String, dynamic>> _getPostsForCurrentTab() {
+    switch (_profileTabIndex) {
+      case 1: return _getTubeMaxPosts();
+      case 2: return _getBlogsPosts();
+      default: return _getShortsPosts();
+    }
+  }
+
   void _openTubePlayer(int postIndex) {
     final videoPosts = _getVideoPosts();
     if (videoPosts.isEmpty) return;
     
     // Find the index of the clicked post in the video posts list
     final clickedPost = _posts[postIndex];
-    final videoIndex = videoPosts.indexWhere((p) => p['id'] == clickedPost['id']);
+    final videoIndex = videoPosts.indexWhere((p) => (p['id'] ?? p['_id']) == (clickedPost['id'] ?? clickedPost['_id']));
     
     if (videoIndex == -1) return;
     
@@ -609,6 +662,48 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
       'videos': videoPosts,
       'initialIndex': videoIndex,
     });
+  }
+
+  void _openTubePlayerFromList(List<Map<String, dynamic>> tabPosts, int indexInTab) {
+    if (tabPosts.isEmpty || indexInTab >= tabPosts.length) return;
+    final post = tabPosts[indexInTab];
+    if (!_isVideoPost(post)) return;
+    final videoPosts = _getVideoPosts();
+    final videoIndex = videoPosts.indexWhere((p) => (p['id'] ?? p['_id']) == (post['id'] ?? post['_id']));
+    if (videoIndex == -1) return;
+    context.push('/tube-player', extra: {
+      'videos': videoPosts,
+      'initialIndex': videoIndex,
+    });
+  }
+
+  Widget _profileTab(String label, int index) {
+    final isActive = _profileTabIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _profileTabIndex = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? const Color(0xFFEA580C) : Colors.white54,
+              fontSize: 14,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: 24,
+            height: 2.5,
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFFEA580C) : Colors.transparent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -675,7 +770,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
+                  colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -709,7 +804,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                 Container(
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
+                      colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -738,7 +833,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEA580C)),
               ),
             )
           : _profile == null
@@ -756,7 +851,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                       ElevatedButton(
                         onPressed: _loadProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB875FB),
+                          backgroundColor: const Color(0xFFEA580C),
                           foregroundColor: Colors.black,
                         ),
                         child: const Text('Retry'),
@@ -770,7 +865,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                     await _loadStats();
                     await _loadPosts();
                   },
-                  color: const Color(0xFFB875FB),
+                  color: const Color(0xFFEA580C),
                   child: CustomScrollView(
                     controller: _scrollController,
                     slivers: [
@@ -798,11 +893,11 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       gradient: const LinearGradient(
-                                        colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
+                                        colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Color(0xFFB875FB).withOpacity(0.4),
+                                          color: Color(0xFFEA580C).withOpacity(0.4),
                                           blurRadius: 20,
                                           spreadRadius: 0,
                                         ),
@@ -841,7 +936,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                       child: Container(
                                         decoration: BoxDecoration(
                                           gradient: const LinearGradient(
-                                            colors: [Color(0xFFB875FB), Color(0xFFB875FB)],
+                                            colors: [Color(0xFFF59E0B), Color(0xFFEA580C)],
                                           ),
                                           shape: BoxShape.circle,
                                           border: Border.all(
@@ -904,16 +999,8 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                       if (_stats != null)
                         SliverToBoxAdapter(
                           child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.1),
-                                width: 1,
-                              ),
-                            ),
+                            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
@@ -937,6 +1024,23 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                   (_extractIntValue(_stats?['total_likes']) ?? 0).toString(),
                                   Icons.favorite_outline,
                                 ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      
+                      // Tabs: Shorts | Tube Max | Articles (like web)
+                      if (!_isEditing)
+                        SliverToBoxAdapter(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Row(
+                              children: [
+                                _profileTab('Shorts', 0),
+                                const SizedBox(width: 16),
+                                _profileTab('Tube Max', 1),
+                                const SizedBox(width: 16),
+                                _profileTab('Articles', 2),
                               ],
                             ),
                           ),
@@ -1032,13 +1136,40 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                       
                       // My Posts Section
                       if (!_isEditing)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEA580C),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'My Videos',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (!_isEditing)
                         _loadingPosts
                             ? const SliverToBoxAdapter(
                                 child: Center(
                                   child: Padding(
                                     padding: EdgeInsets.all(32.0),
                                     child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
+                                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEA580C)),
                                     ),
                                   ),
                                 ),
@@ -1077,149 +1208,112 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
                                       ),
                                     ),
                                   )
-                                : SliverPadding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    sliver: SliverGrid(
-                                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 3,
-                                        crossAxisSpacing: 4,
-                                        mainAxisSpacing: 4,
-                                        childAspectRatio: 0.75,
-                                      ),
-                                      delegate: SliverChildBuilderDelegate(
-                                        (context, index) {
-                                          // Show loading indicator at the end
-                                          if (index >= _posts.length) {
-                                            if (_loadingMorePosts) {
-                                              return const Padding(
-                                                padding: EdgeInsets.all(20),
-                                                child: Center(
-                                                  child: CircularProgressIndicator(
-                                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB875FB)),
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                            return const SizedBox.shrink();
-                                          }
-                                            final post = _posts[index];
-                                            final thumbnail = _getPostThumbnail(post);
-                                            final isAudio = _isAudioPost(post);
-                                            final isVideo = _isVideoPost(post);
-                                            
-                                            return GestureDetector(
-                                              onTap: isVideo ? () => _openTubePlayer(index) : null,
-                                              onLongPress: () => _deletePost(post['id']),
-                                              child: Stack(
-                                                fit: StackFit.expand,
-                                                children: [
-                                                  thumbnail != null && thumbnail.isNotEmpty
-                                                      ? ClipRRect(
-                                                          borderRadius: BorderRadius.circular(8),
-                                                          child: Image.network(
-                                                            thumbnail,
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder: (context, error, stackTrace) {
-                                                              return Container(
-                                                                decoration: BoxDecoration(
-                                                                  color: Colors.grey[800],
-                                                                  borderRadius: BorderRadius.circular(8),
-                                                                ),
-                                                                child: Center(
-                                                                  child: Icon(
-                                                                    isAudio ? Icons.music_note : Icons.video_library_outlined,
-                                                                    color: Colors.grey,
-                                                                    size: 32,
-                                                                  ),
-                                                                ),
-                                                              );
-                                                            },
-                                                          ),
-                                                        )
-                                                      : Container(
-                                                          decoration: BoxDecoration(
-                                                            color: Colors.grey[800],
-                                                            borderRadius: BorderRadius.circular(8),
-                                                          ),
-                                                          child: Center(
-                                                            child: Icon(
-                                                              isAudio ? Icons.music_note : Icons.video_library_outlined,
-                                                              color: Colors.grey,
-                                                              size: 32,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                  if (isAudio)
-                                                    Positioned(
-                                                      bottom: 4,
-                                                      left: 4,
-                                                      child: Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                        decoration: BoxDecoration(
-                                                          color: Colors.black.withOpacity(0.6),
-                                                          borderRadius: BorderRadius.circular(4),
-                                                        ),
-                                                        child: const Icon(
-                                                          Icons.music_note,
-                                                          color: Colors.white,
-                                                          size: 14,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  Positioned(
-                                                    top: 4,
-                                                    right: 4,
-                                                    child: GestureDetector(
-                                                      onTap: () => _deletePost(post['id']),
-                                                      child: Container(
-                                                        padding: const EdgeInsets.all(4),
-                                                        decoration: BoxDecoration(
-                                                          color: Colors.red.withOpacity(0.8),
-                                                          shape: BoxShape.circle,
-                                                        ),
-                                                        child: const Icon(
-                                                          Icons.delete_outline,
-                                                          color: Colors.white,
-                                                          size: 16,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          },
-                                          childCount: _posts.length + (_loadingMorePosts ? 1 : 0),
-                                        ),
-                                      ),
-                                    ),
+                                : _buildProfileTabGrid(),
                     ],
                   ),
                 ),
     );
   }
 
+  Widget _buildProfileTabGrid() {
+    final tabPosts = _getPostsForCurrentTab();
+    if (tabPosts.isEmpty && !_loadingMorePosts) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Center(
+            child: Text(
+              _profileTabIndex == 0 ? 'No Shorts yet' : (_profileTabIndex == 1 ? 'No long videos yet' : 'No articles yet'),
+              style: TextStyle(color: Colors.grey[400], fontSize: 14),
+            ),
+          ),
+        ),
+      );
+    }
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 4,
+          mainAxisSpacing: 4,
+          childAspectRatio: 0.75,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            if (index >= tabPosts.length) {
+              if (_loadingMorePosts && _profileTabIndex == 0) {
+                return const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(
+                    child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEA580C))),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            }
+            final post = tabPosts[index];
+            final thumbnail = _getPostThumbnail(post);
+            final isAudio = _isAudioPost(post);
+            final isVideo = _isVideoPost(post);
+            final postId = post['id'] ?? post['_id'];
+            return GestureDetector(
+              onTap: isVideo ? () => _openTubePlayerFromList(tabPosts, index) : (_profileTabIndex == 2 ? () => context.push('/blog/${post['uuid'] ?? postId}') : null),
+              onLongPress: () => _deletePost(postId),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  thumbnail != null && thumbnail.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            thumbnail,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(8)),
+                              child: Center(child: Icon(isAudio ? Icons.music_note : (_profileTabIndex == 2 ? Icons.article : Icons.video_library_outlined), color: Colors.grey, size: 32)),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(8)),
+                          child: Center(child: Icon(isAudio ? Icons.music_note : (_profileTabIndex == 2 ? Icons.article : Icons.video_library_outlined), color: Colors.grey, size: 32)),
+                        ),
+                  if (isAudio)
+                    Positioned(bottom: 4, left: 4, child: Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)), child: const Icon(Icons.music_note, color: Colors.white, size: 14))),
+                  if (isVideo)
+                    const Positioned.fill(child: Center(child: Icon(Icons.play_circle_outline, color: Colors.white70, size: 36))),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () => _deletePost(postId),
+                      child: Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: Colors.red.withOpacity(0.8), shape: BoxShape.circle), child: const Icon(Icons.delete_outline, color: Colors.white, size: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+          childCount: tabPosts.length + (_loadingMorePosts && _profileTabIndex == 0 ? 1 : 0),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: const Color(0xFFB875FB), size: 24),
-        ),
-        const SizedBox(height: 8),
         Text(
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           label,
           style: TextStyle(
@@ -1286,7 +1380,7 @@ class _PersonalProfileScreenState extends State<PersonalProfileScreen> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(
-                color: Color(0xFFB875FB),
+                color: Color(0xFFEA580C),
                 width: 2,
               ),
             ),

@@ -9,8 +9,10 @@ import '../services/storage_service.dart';
 import '../services/firebase_service.dart';
 import 'dart:async';
 
-const Color _primaryColor = Color(0xFFB875FB);
-const Color _primaryColorLight = Color(0xFFE84BC4);
+import 'shorts_player_screen.dart';
+
+const Color _primaryColor = Color(0xFFEA580C);
+const Color _primaryColorLight = Color(0xFFF59E0B);
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final StorageService _storageService = StorageService();
+  int _currentTab = 0;
   
   String? _currentUserAvatar;
   String _currentUserInitial = 'U';
@@ -32,13 +35,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _isLoadingCreators = true;
   late AnimationController _shimmerController;
   
-  // Trending videos
+  // Tube Shorts feed (home view)
   List<Map<String, dynamic>> _trendingVideos = [];
   bool _isLoadingVideos = true;
   int _currentVideoPage = 1;
   bool _hasMoreVideos = true;
   bool _isLoadingMoreVideos = false;
   final ScrollController _trendingVideosScrollController = ScrollController();
+  
+  // Home tabs like web: 0 = Tajify (Shorts), 1 = Tube (Tube Max), 2 = Articles
+  int _homeTabIndex = 0;
+  List<Map<String, dynamic>> _tubeMaxVideos = [];
+  bool _isLoadingTubeMax = false;
   
   // Top tracks (audio posts)
   List<dynamic> _topTracks = [];
@@ -61,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _loadTrendingVideos();
     _loadTopTracks();
     _loadLatestArticles();
+    _loadTubeMaxVideos();
     _loadNotificationUnreadCount();
     _initializeFirebaseAndLoadMessagesCount();
   }
@@ -75,11 +84,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadNotificationUnreadCount() async {
     try {
-      final response = await _apiService.get('/notifications/unread-count');
+      final response = await _apiService.getUnreadCount();
       if (response.statusCode == 200 && response.data['success'] == true) {
         if (mounted) {
           setState(() {
-            _notificationUnreadCount = response.data['data']['count'] ?? 0;
+            final data = response.data['data'];
+            _notificationUnreadCount = data?['unread_count'] ?? response.data['unread_count'] ?? 0;
           });
         }
       }
@@ -171,7 +181,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (response.statusCode == 200 && response.data['success'] == true) {
         if (mounted) {
           setState(() {
-            _topCreators = response.data['data'] ?? [];
+            final data = response.data;
+            if (data['users'] != null) {
+              _topCreators = data['users'];
+            } else if (data['data'] != null && data['data']['users'] != null) {
+              _topCreators = data['data']['users'];
+            } else {
+              _topCreators = [];
+            }
             _isLoadingCreators = false;
           });
         }
@@ -189,27 +206,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadTrendingVideos() async {
     try {
-      debugPrint('🔍 HomeScreen - Loading trending videos...');
+      debugPrint('🔍 HomeScreen - Loading tube shorts...');
       setState(() {
         _isLoadingVideos = true;
         _currentVideoPage = 1;
       });
       
-      final response = await _apiService.getTrendingPosts(page: 1, limit: 10);
+      final response = await _apiService.getHomeFeed(page: 1, limit: 20, type: 'shorts');
       if (response.statusCode == 200 && response.data['success'] == true) {
         final pagination = response.data['data'];
         if (mounted) {
           setState(() {
             final videos = pagination['data'] ?? [];
-            _trendingVideos = videos.cast<Map<String, dynamic>>();
+            _trendingVideos = (videos as List)
+                .where((v) => v is Map<String, dynamic> && _hasValidVideoUrl(v))
+                .cast<Map<String, dynamic>>()
+                .toList();
             _hasMoreVideos = _currentVideoPage < (pagination['last_page'] ?? 1);
             _isLoadingVideos = false;
           });
         }
-        debugPrint('🔍 HomeScreen - Trending videos loaded: ${_trendingVideos.length}');
+        debugPrint('🔍 HomeScreen - Tube shorts loaded: ${_trendingVideos.length}');
       }
     } catch (e) {
-      debugPrint('❌ HomeScreen - Error loading trending videos: $e');
+      debugPrint('❌ HomeScreen - Error loading tube shorts: $e');
       if (mounted) {
         setState(() {
           _isLoadingVideos = false;
@@ -227,14 +247,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       });
       
       final nextPage = _currentVideoPage + 1;
-      final response = await _apiService.getTrendingPosts(page: nextPage, limit: 10);
+      final response = await _apiService.getHomeFeed(page: nextPage, limit: 20, type: 'shorts');
       
       if (response.statusCode == 200 && response.data['success'] == true) {
         final pagination = response.data['data'];
         if (mounted) {
           setState(() {
-            final newVideos = pagination['data'] ?? [];
-            _trendingVideos.addAll(newVideos.cast<Map<String, dynamic>>());
+            final newVideos = (pagination['data'] ?? [])
+                .where((v) => v is Map<String, dynamic> && _hasValidVideoUrl(v))
+                .cast<Map<String, dynamic>>();
+            _trendingVideos.addAll(newVideos);
             _currentVideoPage = nextPage;
             _hasMoreVideos = nextPage < (pagination['last_page'] ?? 1);
             _isLoadingMoreVideos = false;
@@ -310,445 +332,281 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _loadTubeMaxVideos() async {
+    try {
+      setState(() => _isLoadingTubeMax = true);
+      final response = await _apiService.getTubeMaxPosts(page: 1, limit: 20);
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        final list = data is List ? data : (data is Map ? (data['data'] ?? []) : []);
+        if (mounted) {
+          setState(() {
+            _tubeMaxVideos = (list as List)
+                .whereType<Map<String, dynamic>>()
+                .cast<Map<String, dynamic>>()
+                .toList();
+            _isLoadingTubeMax = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingTubeMax = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading Tube Max: $e');
+      if (mounted) setState(() => _isLoadingTubeMax = false);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadMoreVideosCallback(int page) async {
+    try {
+      final response = await _apiService.getHomeFeed(page: page, limit: 20, type: 'shorts');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final pagination = response.data['data'];
+        final videos = pagination['data'] ?? [];
+        return (videos as List)
+            .where((v) => v is Map<String, dynamic> && _hasValidVideoUrl(v))
+            .cast<Map<String, dynamic>>()
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error loading more videos: $e');
+    }
+    return [];
+  }
+
+  // Home: Tajify (Shorts) | Tube (Tube Max) | Articles — like web
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF232323),
-      appBar: TajifyTopBar(
-        onSearch: () => context.push('/search'),
-        onNotifications: () => context.push('/notifications').then((_) => _loadNotificationUnreadCount()),
-        onMessages: () => context.push('/messages').then((_) => _initializeFirebaseAndLoadMessagesCount()),
-        onAvatarTap: () => context.go('/profile'),
-        notificationCount: _notificationUnreadCount,
-        messageCount: _messagesUnreadCount,
-        avatarUrl: _currentUserAvatar,
-        displayLetter: _currentUserInitial,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            // Top Creators Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Top Creators',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(
-                        Icons.trending_up,
-                        color: _primaryColor,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  const Text(
-                    'View All',
-                    style: TextStyle(
-                      color: _primaryColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Content based on tab
+          if (_homeTabIndex == 0) ...[
+            if (_isLoadingVideos && _trendingVideos.isEmpty)
+              const Center(child: CircularProgressIndicator(color: _primaryColor))
+            else if (_trendingVideos.isEmpty)
+              _buildEmptyFeed()
+            else
+              ShortsPlayerScreen(
+                videos: _trendingVideos,
+                initialIndex: 0,
+                loadMoreVideos: _loadMoreVideosCallback,
+                isEmbedded: true,
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 120,
-              child: _isLoadingCreators
-                  ? ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        // Your Channel
-                        _buildCreatorItem(
-                          isYourChannel: true,
-                          label: 'Your Channel',
-                        ),
-                        const SizedBox(width: 16),
-                        // Skeleton loaders
-                        _buildCreatorSkeleton(),
-                        const SizedBox(width: 16),
-                        _buildCreatorSkeleton(),
-                        const SizedBox(width: 16),
-                        _buildCreatorSkeleton(),
-                        const SizedBox(width: 16),
-                        _buildCreatorSkeleton(),
-                      ],
-                    )
-                  : ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        // Your Channel
-                        _buildCreatorItem(
-                          isYourChannel: true,
-                          label: 'Your Channel',
-                        ),
-                        const SizedBox(width: 16),
-                        // Top creators from backend
-                        ..._topCreators.map((creator) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: GestureDetector(
-                              onTap: () {
-                                final username = creator['username'];
-                                if (username != null && username.isNotEmpty) {
-                                  context.push('/user/$username');
-                                }
-                              },
-                              child: _buildCreatorItem(
-                                name: creator['name'] ?? '',
-                                avatarUrl: creator['profile_avatar'],
-                                hasNewTag: false,
-                                gradientColors: [_primaryColor, _primaryColorLight],
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
-            ),
-            const SizedBox(height: 32),
-            // Trending Videos Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Trending Videos',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      context.push('/channel');
-                    },
-                    child: const Text(
-                      'See All',
-                      style: TextStyle(
-                        color: _primaryColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
+          ] else if (_homeTabIndex == 1)
+            _buildTubeMaxSection()
+          else
+            _buildArticlesSection(),
+          Column(
+            children: [
+              TajifyTopBar(
+                onSearch: () => context.push('/search'),
+                onNotifications: () => context.push('/notifications').then((_) => _loadNotificationUnreadCount()),
+                onMessages: () => context.push('/messages').then((_) => _initializeFirebaseAndLoadMessagesCount()),
+                onAvatarTap: () => context.go('/profile'),
+                notificationCount: _notificationUnreadCount,
+                messageCount: _messagesUnreadCount,
+                avatarUrl: _currentUserAvatar,
+                displayLetter: _currentUserInitial,
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 250,
-              child: _isLoadingVideos
-                  ? ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        _buildVideoSkeleton(),
-                        const SizedBox(width: 16),
-                        _buildVideoSkeleton(),
-                        const SizedBox(width: 16),
-                        _buildVideoSkeleton(),
-                      ],
-                    )
-                  : _trendingVideos.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No trending videos',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: _trendingVideosScrollController,
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _trendingVideos.length + (_isLoadingMoreVideos ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _trendingVideos.length) {
-                              return Padding(
-                                padding: const EdgeInsets.only(left: 16.0),
-                                child: _buildVideoSkeleton(),
-                              );
-                            }
-                            
-                            final video = _trendingVideos[index];
-                            final user = video['user'] ?? {};
-                            final thumbnailUrl = _getThumbnail(video);
-                            final videoUrl = _getPrimaryMediaUrl(video);
-                            
-                            final likesCount = video['likes_count'] is int 
-                                ? video['likes_count'] as int
-                                : (video['likes_count'] is String 
-                                    ? int.tryParse(video['likes_count'] as String) ?? 0
-                                    : 0);
-                            final viewsText = _formatViews(likesCount);
-                            
-                            return GestureDetector(
-                              onTap: () {
-                                Future<List<Map<String, dynamic>>> loadMoreVideos(int page) async {
-                                  try {
-                                    final response = await _apiService.getTrendingPosts(page: page, limit: 10);
-                                    if (response.statusCode == 200 && response.data['success'] == true) {
-                                      final pagination = response.data['data'];
-                                      final videos = pagination['data'] ?? [];
-                                      return videos.cast<Map<String, dynamic>>();
-                                    }
-                                  } catch (e) {
-                                    debugPrint('Error loading more videos: $e');
-                                  }
-                                  return <Map<String, dynamic>>[];
-                                }
-                                
-                                context.push('/tube-player', extra: {
-                                  'videos': _trendingVideos,
-                                  'initialIndex': index,
-                                  'loadMoreVideos': loadMoreVideos,
-                                });
-                              },
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  right: index == _trendingVideos.length - 1 ? 0 : 16,
-                                ),
-                                child: _buildVideoItem(
-                                  title: video['title'] ?? video['description'] ?? 'Untitled',
-                                  creator: user['name'] ?? user['username'] ?? 'Unknown',
-                                  views: viewsText,
-                                  thumbnailUrl: thumbnailUrl,
-                                  videoUrl: videoUrl,
-                                  showPlayButton: true,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-            ),
-            const SizedBox(height: 32),
-            // Top Tracks Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.music_note,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Top Tracks',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      context.push('/channel', extra: {'initialCategory': 'audio'});
-                    },
-                    child: const Text(
-                      'View All',
-                      style: TextStyle(
-                        color: _primaryColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 100,
-              child: _isLoadingTracks
-                  ? ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        _buildTrackSkeleton(),
-                        const SizedBox(width: 16),
-                        _buildTrackSkeleton(),
-                      ],
-                    )
-                  : _topTracks.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No tracks available',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        )
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _topTracks.length,
-                          itemBuilder: (context, index) {
-                            final track = _topTracks[index];
-                            final user = track['user'] ?? {};
-                            final likesCount = track['likes_count'] is int 
-                                ? track['likes_count'] as int
-                                : (track['likes_count'] is String 
-                                    ? int.tryParse(track['likes_count'] as String) ?? 0
-                                    : 0);
-                            final playsText = _formatViews(likesCount);
-                            
-                            return Padding(
-                              padding: EdgeInsets.only(
-                                right: index == _topTracks.length - 1 ? 0 : 16,
-                              ),
-                              child: GestureDetector(
-                                onTap: () {
-                                  context.push('/channel', extra: {
-                                    'initialCategory': 'audio',
-                                    'initialAudioTrack': track,
-                                  });
-                                },
-                                child: _buildTrackItem(
-                                  rank: '#${index + 1}',
-                                  title: track['title'] ?? track['description'] ?? 'Untitled',
-                                  artist: user['name'] ?? user['username'] ?? 'Unknown',
-                                  plays: playsText,
-                                  coverImageUrl: _getThumbnail(track),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-            ),
-            const SizedBox(height: 32),
-            // Latest Articles Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Latest Articles',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      context.push('/channel', extra: {'initialCategory': 'blog'});
-                    },
-                    child: const Text(
-                      'View All',
-                      style: TextStyle(
-                        color: _primaryColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 280,
-              child: _isLoadingArticles
-                  ? ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        _buildArticleSkeleton(),
-                        const SizedBox(width: 16),
-                        _buildArticleSkeleton(),
-                      ],
-                    )
-                  : _latestArticles.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No articles available',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        )
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _latestArticles.length,
-                          itemBuilder: (context, index) {
-                            final article = _latestArticles[index];
-                            final user = article['user'] ?? {};
-                            final coverImageUrl = article['cover_image_url'] ?? article['thumbnail_url'];
-                            final tags = article['tags'] ?? [];
-                            final category = tags.isNotEmpty ? tags[0].toString() : 'General';
-                            
-                            // Calculate time ago
-                            String timeAgo = 'Recently';
-                            if (article['created_at'] != null) {
-                              try {
-                                final createdAt = DateTime.parse(article['created_at']);
-                                final now = DateTime.now();
-                                final difference = now.difference(createdAt);
-                                if (difference.inDays > 0) {
-                                  timeAgo = '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-                                } else if (difference.inHours > 0) {
-                                  timeAgo = '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-                                } else if (difference.inMinutes > 0) {
-                                  timeAgo = '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-                                }
-                              } catch (e) {
-                                timeAgo = 'Recently';
-                              }
-                            }
-                            
-                            return Padding(
-                              padding: EdgeInsets.only(
-                                right: index == _latestArticles.length - 1 ? 0 : 16,
-                              ),
-                              child: _buildArticleItem(
-                                uuid: article['uuid'] ?? article['id']?.toString(),
-                                category: category,
-                                categoryColor: _primaryColor,
-                                title: article['title'] ?? 'Untitled',
-                                source: user['name'] ?? user['username'] ?? 'Unknown',
-                                time: timeAgo,
-                                coverImageUrl: coverImageUrl,
-                              ),
-                            );
-                          },
-                        ),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+              _buildHomeTabs(),
+            ],
+          ),
+        ],
       ),
       bottomNavigationBar: const CustomBottomNav(currentIndex: 0),
+    );
+  }
+
+  Widget _buildHomeTabs() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _homeTab('Tajify', 0),
+          const SizedBox(width: 24),
+          _homeTab('Tube', 1),
+          const SizedBox(width: 24),
+          _homeTab('Articles', 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _homeTab(String label, int index) {
+    final isActive = _homeTabIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _homeTabIndex = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? _primaryColor : Colors.white54,
+              fontSize: 14,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 24,
+            height: 2.5,
+            decoration: BoxDecoration(
+              color: isActive ? _primaryColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTubeMaxSection() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(top: 120, left: 16, right: 16, bottom: 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Tube Max', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          if (_isLoadingTubeMax)
+            Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: _primaryColor)))
+          else if (_tubeMaxVideos.isEmpty)
+            Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No long videos yet', style: TextStyle(color: Colors.white54))))
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _tubeMaxVideos.length,
+              itemBuilder: (context, i) {
+                final v = _tubeMaxVideos[i];
+                final thumb = _getThumbnailFromVideo(v);
+                final user = v['user'] ?? {};
+                final channelName = user['name'] ?? user['username'] ?? 'Creator';
+                final avatar = user['profile_avatar'] ?? user['avatar'];
+                final views = v['views_count'] ?? v['views'] ?? 0;
+                final viewsStr = views >= 1000000 ? '${(views / 1000000).toStringAsFixed(1)}M' : (views >= 1000 ? '${(views / 1000).toStringAsFixed(1)}K' : '$views');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: GestureDetector(
+                    onTap: () => context.push('/tube-player', extra: {'videos': _tubeMaxVideos, 'initialIndex': i, 'loadMoreVideos': _loadMoreVideosCallback}),
+                    child: Container(
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.grey[900]),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                            child: AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: thumb != null && thumb.isNotEmpty
+                                  ? CachedNetworkImage(imageUrl: thumb.startsWith('http') ? thumb : 'https://api.tajify.com$thumb', fit: BoxFit.cover)
+                                  : Container(color: Colors.grey[800], child: Icon(Icons.videocam_off, color: Colors.white38, size: 48)),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  backgroundColor: Colors.grey[700],
+                                  backgroundImage: (avatar != null && avatar.toString().isNotEmpty)
+                                      ? NetworkImage(avatar.toString().startsWith('http') ? avatar.toString() : 'https://api.tajify.com$avatar')
+                                      : null,
+                                  child: (avatar == null || avatar.toString().isEmpty) ? Text((channelName.toString().isNotEmpty ? channelName.toString()[0] : '?').toUpperCase(), style: TextStyle(color: Colors.white)) : null,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(v['description'] ?? v['title'] ?? 'Video', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                      const SizedBox(height: 4),
+                                      Text('$channelName · $viewsStr views', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.play_circle_filled, color: Colors.white54, size: 32),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  String? _getThumbnailFromVideo(Map<String, dynamic> video) {
+    final mf = video['media_files'];
+    if (mf is List && mf.isNotEmpty) {
+      final m = mf.first as Map<String, dynamic>?;
+      if (m != null) return m['thumbnail_path'] ?? m['thumbnail_url'] ?? m['thumbnail']?.toString();
+    }
+    return video['thumbnail_url'] ?? video['thumbnail']?.toString();
+  }
+
+  Widget _buildArticlesSection() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(top: 120, left: 16, right: 16, bottom: 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Articles', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('Tap Articles in the tab bar to open the full articles feed.', style: TextStyle(color: Colors.white54, fontSize: 13)),
+          const SizedBox(height: 16),
+          if (_latestArticles.isEmpty && !_isLoadingArticles)
+            Center(child: Text('No articles yet', style: TextStyle(color: Colors.white54)))
+          else
+            ...(_latestArticles.take(5).map((a) {
+              final title = a['title'] ?? 'Untitled';
+              final cover = a['cover_image_url'] ?? a['thumbnail_url'];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: cover != null && cover.toString().isNotEmpty
+                      ? ClipRRect(borderRadius: BorderRadius.circular(8), child: CachedNetworkImage(width: 56, height: 56, imageUrl: cover.toString().startsWith('http') ? cover.toString() : 'https://api.tajify.com${cover.toString()}', fit: BoxFit.cover))
+                      : Container(width: 56, height: 56, decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(8)), child: Icon(Icons.article, color: Colors.white38)),
+                  title: Text(title.toString(), style: TextStyle(color: Colors.white, fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  onTap: () => context.push('/blog/${a['uuid'] ?? a['id'] ?? ''}'),
+                ),
+              );
+            })),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyFeed() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.videocam_off_rounded, color: Colors.white38, size: 64),
+          const SizedBox(height: 16),
+          Text(
+            'No videos yet',
+            style: TextStyle(color: Colors.white54, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Check back later or create one',
+            style: TextStyle(color: Colors.white38, fontSize: 13),
+          ),
+        ],
+      ),
     );
   }
 
@@ -861,7 +719,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       animation: _shimmerController,
       builder: (context, child) {
         final shimmerValue = _shimmerController.value;
-        final shimmerPosition = shimmerValue * 2 - 1; // Range from -1 to 1
+        final shimmerPosition = shimmerValue * 2 - 1; 
         
         return Column(
           children: [
@@ -1046,20 +904,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String _getPrimaryMediaUrl(Map<String, dynamic> video) {
     final mediaFiles = video['media_files'];
     if (mediaFiles is List && mediaFiles.isNotEmpty) {
-      final first = mediaFiles.first;
+      final first = mediaFiles.firstWhere(
+        (m) => m is Map && (m['file_type'] == 'video' || m['file_path'] != null),
+        orElse: () => mediaFiles.first,
+      );
       if (first is Map<String, dynamic>) {
         final path = first['file_path'] ?? first['file_url'] ?? first['url'];
-        if (path is String && path.isNotEmpty) {
-          return path;
-        }
+        if (path is String && path.isNotEmpty) return path;
       }
     }
-    final fallback = video['video_url'] ??
-        video['media_url'] ??
-        video['file_path'] ??
-        video['file_url'] ??
-        video['url'];
+    final fallback = video['video_url'] ?? video['media_url'] ?? video['file_path'] ?? video['file_url'] ?? video['url'];
     return fallback?.toString() ?? '';
+  }
+
+  /// Only show videos that have a playable video URL (stops loading/crash for missing media).
+  bool _hasValidVideoUrl(Map<String, dynamic> video) {
+    final url = _getPrimaryMediaUrl(video);
+    return url.isNotEmpty;
   }
 
   Widget _buildVideoItem({
